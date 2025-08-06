@@ -1,0 +1,35 @@
+/* Global styles */
+
+/* Hide the checkmark for checkboxes */
+.checkbox-hide-checkmark .peer[data-state="checked"] .h-4.w-4 {
+    display: none;
+}
+
+/* Add custom styles for better design */
+.checkbox-hide-checkmark .peer {
+    position: relative;
+    padding: 16px;
+    border-radius: 12px;
+    background-color: #f0f0f0;
+    transition: background-color 0.3s ease;
+}
+
+.checkbox-hide-checkmark .peer:hover {
+    background-color: #e0e0e0;
+}
+
+/* Update checkmark design */
+.checkbox-hide-checkmark .peer[data-state="checked"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #4caf50;
+    /* Green background for checked state */
+    width: 24px;
+    height: 24px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
