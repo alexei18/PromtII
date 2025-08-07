@@ -34,7 +34,7 @@ Prompt AI este o platformă avansată pentru generarea de întrebări personaliz
 ## Configurare
 - **.env**: Conține cheia API pentru Gemini:
   ```
-  GEMINI_API_KEY=AIzaSyDqWW-YihOI7a58O44PwIFAnUWCidTqJt4
+  GEMINI_API_KEY=
   ```
 
 ## Tehnologii utilizate
