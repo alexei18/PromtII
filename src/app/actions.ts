@@ -9,11 +9,14 @@ import { constructTailoredSystemPrompt } from '@/ai/flows/generate-ai-prompt';
 import { analyzeWebsiteBasics } from '@/ai/flows/analyze-website-basics';
 import { testPrompt } from '@/ai/flows/test-prompt';
 import { generatePersonaCard } from '@/ai/flows/generate-persona-card';
+import { generateTailoredSurveyQuestions } from '@/ai/flows/generate-survey-questions'; // NOU: importat direct
 
 // Importăm tipurile necesare
 import type { WebsiteAnalysis, PersonaCardData, ChatMessage, SurveyQuestion } from '@/lib/types';
+import { WebsiteAnalysisSchema } from '@/lib/types';
 
-// ACȚIUNEA PENTRU FAZA 1 - Rămâne neschimbată
+
+// ACȚIUNEA PENTRU FAZA 1 - Analiza rapidă a site-ului
 export async function startInitialAnalysisAction(url: string): Promise<{
   questions: SurveyQuestion[];
   analysis: WebsiteAnalysis;
@@ -21,7 +24,7 @@ export async function startInitialAnalysisAction(url: string): Promise<{
 }> {
   console.log(`[ACTION] Starting PHASE 1: Quick scan for ${url}`);
   const result = await analyzeWebsiteForSurvey({ url });
-  console.log(`[ACTION] PHASE 1 complete. Returning survey questions.`);
+  console.log(`[ACTION] PHASE 1 complete. Returning survey questions and analysis.`);
   return {
     questions: result.questions,
     analysis: result.analysis,
@@ -29,13 +32,27 @@ export async function startInitialAnalysisAction(url: string): Promise<{
   };
 }
 
-// ACȚIUNE NOUĂ: Doar pentru crawl-ul de fundal (Faza 2 - Partea 1)
+// NOU: ACȚIUNE PENTRU FAZA 1 - Când utilizatorul NU are website
+export async function generateSurveyWithoutWebsiteAction(manualAnalysis: WebsiteAnalysis): Promise<{
+  questions: SurveyQuestion[];
+}> {
+  console.log(`[ACTION] Starting PHASE 1: No website flow.`);
+  // Generăm întrebări direct pe baza analizei manuale
+  const { questions } = await generateTailoredSurveyQuestions({
+    analysis: manualAnalysis,
+    crawledText: '', // Nu avem conținut de pe site
+  });
+  console.log(`[ACTION] PHASE 1 (No website) complete. Returning survey questions.`);
+  return { questions };
+}
+
+// ACȚIUNE PENTRU CRAWL-UL DE FUNDAL (Faza 2 - Partea 1)
 export async function performDeepCrawlAction(url: string): Promise<string> {
   console.log(`[ACTION][BACKGROUND] Starting deep crawl for ${url}`);
   try {
     const { crawledText, pageCount } = await crawlAndExtractContent({
       url,
-      maxPages: 50, // Parametri pentru un crawl detaliat
+      maxPages: 50,
       crawlDepth: 2,
     });
     console.log(`[ACTION][BACKGROUND] Deep crawl finished. Extracted ${pageCount} pages.`);
@@ -46,25 +63,32 @@ export async function performDeepCrawlAction(url: string): Promise<string> {
   }
 }
 
-// ACȚIUNE MODIFICATĂ: Pentru generarea prompt-ului (Faza 2 - Partea 2)
-// Acum primește textul deja extras
+// ACȚIUNE MODIFICATĂ: Pentru generarea prompt-ului final (Faza 2 - Partea 2)
+// Acum primește textul extras și analiza inițială (manuală sau automată)
 export async function generateFinalPromptAction(params: {
   surveyResponses: Record<string, string>;
-  deepCrawledText: string;
+  deepCrawledText: string | null; // Poate fi null dacă s-a sărit peste pasul cu URL
+  initialAnalysis: WebsiteAnalysis; // Analiza inițială, confirmată sau introdusă manual
 }): Promise<{ finalPrompt: string; personaCard: PersonaCardData }> {
-  console.log(`[ACTION] Starting final prompt generation with deep-crawled text.`);
+  console.log(`[ACTION] Starting final prompt generation.`);
   try {
-    // 1. Re-analizăm pe baza textului complet pentru acuratețe maximă
-    const fullAnalysis = await analyzeWebsiteBasics({ crawledText: params.deepCrawledText });
+    let finalAnalysis = params.initialAnalysis;
+    let textToUse = params.deepCrawledText || '';
 
-    // 2. Construim prompt-ul
+    // Dacă avem conținut din deep crawl, re-analizăm pentru o acuratețe mai mare
+    if (params.deepCrawledText) {
+      console.log('[ACTION] Re-analyzing with deep-crawled text for higher accuracy.');
+      finalAnalysis = await analyzeWebsiteBasics({ crawledText: params.deepCrawledText });
+    }
+
+    // Construim prompt-ul final
     const { finalPrompt } = await constructTailoredSystemPrompt({
       formResponses: params.surveyResponses,
-      crawledText: params.deepCrawledText,
-      analysis: fullAnalysis,
+      crawledText: textToUse,
+      analysis: finalAnalysis, // Folosim cea mai recentă și precisă analiză
     });
 
-    // 3. Generăm cardul de personalitate
+    // Generăm cardul de personalitate
     const personaCard = await generatePersonaCard({ context: finalPrompt });
 
     console.log('[ACTION] Final prompt and persona card generated successfully.');
@@ -76,7 +100,7 @@ export async function generateFinalPromptAction(params: {
   }
 }
 
-// Acțiunile utilitare rămân la fel
+// Acțiunile utilitare rămân neschimbate
 export async function testPromptAction(params: { systemPrompt: string, userMessage: string, history: ChatMessage[] }): Promise<string> {
   console.log('[ACTION] Testing prompt in sandbox...');
   const result = await testPrompt(params);

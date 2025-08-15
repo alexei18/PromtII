@@ -45,61 +45,40 @@ const analyzeWebsiteBasicsFlow = ai.defineFlow(
     outputSchema: WebsiteAnalysisSchema,
   },
   async (input) => {
-    // Split the content into chunks of pages
-    const pages = input.crawledText.split('--- START PAGE:').filter(page => page.trim());
-    const chunkSize = 5; // Further reduced chunk size to minimize rate limits
-    const analysisResults = [];
+    // Dacă textul primit este gol, aruncăm o eroare clară
+    if (!input.crawledText || !input.crawledText.trim()) {
+      throw new Error('analyzeWebsiteBasicsFlow received empty crawledText.');
+    }
 
-    // Pick a subset of pages for analysis, focusing on the most informative ones
-    const selectedPages = pages
-      .sort((a, b) => b.length - a.length) // Sort by content length
-      .slice(0, 10); // Take only top 10 most content-rich pages
+    console.log(`[analyzeWebsiteBasicsFlow] Analyzing text of length: ${input.crawledText.length}`);
 
-    // Process pages in chunks
-    for (let i = 0; i < selectedPages.length; i += chunkSize) {
-      const pageChunk = selectedPages.slice(i, i + chunkSize);
-      const chunkText = pageChunk.join('--- START PAGE:');
-      console.log(`Analyzing chunk ${Math.floor(i / chunkSize) + 1} of ${Math.ceil(selectedPages.length / chunkSize)} (${pageChunk.length} pages)`);
+    // Eliminăm logica complexă de "chunking" și trimitem tot textul direct
+    // Acest lucru este mult mai robust.
 
-      let retries = 3;
-      let delay = 5000; // Start with a longer delay to respect rate limits
+    let retries = 3;
+    let delay = 1000;
 
-      while (retries > 0) {
-        try {
-          const { output } = await prompt({ crawledText: chunkText });
-          if (output) {
-            analysisResults.push(output);
-            break;
-          }
-          throw new Error('No output from prompt.');
-        } catch (error: any) {
-          console.warn(`Website analysis attempt failed for chunk: ${error.message}`);
-          retries--;
-          if (retries === 0) {
-            console.error(`Failed to analyze chunk after several retries: ${error.message}`);
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2;
+    while (retries > 0) {
+      try {
+        const { output } = await prompt({ crawledText: input.crawledText });
+        if (output) {
+          // La succes, returnăm direct rezultatul
+          return output;
         }
+        throw new Error('No output from prompt.');
+      } catch (error: any) {
+        console.warn(`Website analysis attempt failed: ${error.message}`);
+        retries--;
+        if (retries === 0) {
+          console.error(`Failed to analyze after several retries: ${error.message}`);
+          throw new Error('Failed to analyze website content after multiple retries.');
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
       }
     }
 
-    if (analysisResults.length === 0) {
-      throw new Error('Failed to analyze website: no successful analysis results');
-    }
-
-    // Combine and reconcile all analyses
-    return {
-      industry: analysisResults
-        .map(r => r.industry)
-        .reduce((prev, curr) => prev.includes(curr) ? prev : `${prev}, ${curr}`),
-      targetAudience: analysisResults
-        .map(r => r.targetAudience)
-        .reduce((prev, curr) => prev.includes(curr) ? prev : `${prev}, ${curr}`),
-      toneOfVoice: analysisResults
-        .map(r => r.toneOfVoice)
-        .reduce((prev, curr) => prev.includes(curr) ? prev : `${prev}, ${curr}`)
-    };
+    // Această parte nu ar trebui să fie atinsă, dar este necesară pentru TypeScript
+    throw new Error('Exited retry loop unexpectedly without returning a value.');
   }
 );

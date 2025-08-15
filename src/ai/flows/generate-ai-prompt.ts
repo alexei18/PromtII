@@ -15,7 +15,7 @@ import { WebsiteAnalysisSchema } from '@/lib/types';
 
 const ConstructTailoredSystemPromptInputSchema = z.object({
   formResponses: z.record(z.string()).describe('User-provided responses from the dynamic survey form.'),
-  crawledText: z.string().describe('The extracted text content from the crawled website.'),
+  crawledText: z.string().describe('The extracted text content from the crawled website. Can be empty if the user skipped this step.'),
   analysis: WebsiteAnalysisSchema.describe('User-confirmed analysis of the website.'),
 });
 export type ConstructTailoredSystemPromptInput = z.infer<typeof ConstructTailoredSystemPromptInputSchema>;
@@ -56,13 +56,14 @@ You are an expert in marketing, digital strategy, and AI system prompt engineeri
     *   Use the following sub-headings: \`**Rol:**\` (e.g., "Asistent virtual prietenos"), \`**Obiectiv Principal:**\` (e.g., "Colectarea de lead-uri calificate"), \`**Tonul Vocii:**\` (e.g., "Profesional, dar accesibil"), \`**Reguli de Angajament:**\` (e.g., "Întotdeauna proactiv, adresează-te clientului cu 'dumneavoastră'").
 4.  **Step 2: Synthesize Knowledge Base:**
     *   Create a \`<KnowledgeBase>\` section.
-    *   Systematically search \`<WebsiteContent>\` for the following information and structure it with descriptive XML tags:
+    *   **Rule 4.1:** If \`<WebsiteContent>\` is provided and is not empty or 'N/A', systematically search it for the following information and structure it with descriptive XML tags:
         *   **Servicii/Produse:** (\`<servicii>\`, \`<produs id="...">\`)
         *   **Date de Contact:** (\`<contact>\`, \`<telefon>\`, \`<email>\`, \`<adresa>\`)
         *   **Program de Lucru:** (\`<program_lucru>\`, \`<zi nume="Luni-Vineri">\`)
         *   **Proceduri Specifice:** (e.g., \`<proces_admitere>\`, \`<politica_retur>\`)
         *   **Informații despre Companie:** (\`<despre_noi>\`, \`<misiune>\`)
-    *   Review every piece of extracted information and **update, correct, or replace it** with data from \`<ClientResponses>\` if a more specific or conflicting answer exists there.
+    *   **Rule 4.2:** Review every piece of extracted information and **update, correct, or replace it** with data from \`<ClientResponses>\` if a more specific or conflicting answer exists there.
+    *   **Rule 4.3 (Crucial):** If \`<WebsiteContent>\` is empty or 'N/A', you MUST build the entire \`<KnowledgeBase>\` **exclusively** from the information provided in \`<ClientResponses>\`. Do not invent information.
 5.  **Step 3: Add Strict Rules:**
     *   Include a mandatory section titled \`### Reguli Stricte (Ce NU trebuie să faci)\`.
     *   This section must contain clear negative constraints. **Crucially, it must include all of the following rules:** "NU oferi sfaturi medicale, legale sau financiare.", "NU garanta rezultate sau succes.", "NU colecta informații sensibile precum parole sau date de card bancar.", "Dacă nu cunoști un răspuns cu certitudine din KnowledgeBase, afirmă clar acest lucru și oferă o metodă de contact cu un om.", "NU formata textul folosind Markdown (fără bold \`**\`, italic \`*\`, etc.). Răspunde doar cu text simplu.", "NU include imagini, GIF-uri, sau orice alt tip de media în răspunsuri."
@@ -73,7 +74,7 @@ You are an expert in marketing, digital strategy, and AI system prompt engineeri
     *   Do not add any titles, explanations, or conversational text outside the final prompt block.
 
 <WebsiteContent>
-${crawledText}
+${crawledText || 'N/A'}
 </WebsiteContent>
 
 <ClientResponses>

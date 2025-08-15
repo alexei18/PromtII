@@ -13,5 +13,4 @@ import '@/ai/flows/generate-persona-card.ts';
 // Orchestration flows
 import '@/ai/flows/crawl-and-extract-content.ts';
 import '@/ai/flows/analyze-website-for-survey.ts';
-import '@/ai/flows/generate-final-prompt.ts';
-import '@/ai/flows/quick-scan.ts'; // ADAUGAT: Noul flux pentru scanare rapida
+import '@/ai/flows/quick-scan.ts';
