@@ -52,8 +52,8 @@ export async function performDeepCrawlAction(url: string): Promise<string> {
   try {
     const { crawledText, pageCount } = await crawlAndExtractContent({
       url,
-      maxPages: 50,
-      crawlDepth: 2,
+      maxPages: 100,
+      crawlDepth: 3,
     });
     console.log(`[ACTION][BACKGROUND] Deep crawl finished. Extracted ${pageCount} pages.`);
     return crawledText;
