@@ -22,7 +22,10 @@ export function PromptSandbox({ systemPrompt }: PromptSandboxProps) {
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth'});
+        const scrollableView = scrollAreaRef.current.querySelector('div');
+        if (scrollableView) {
+            scrollableView.scrollTo({ top: scrollableView.scrollHeight, behavior: 'smooth'});
+        }
     }
   };
 
@@ -60,7 +63,7 @@ export function PromptSandbox({ systemPrompt }: PromptSandboxProps) {
   };
 
   return (
-    <Card className="w-full shadow-2xl bg-white/60 dark:bg-black/60 backdrop-blur-lg border-gray-200/50 dark:border-gray-800/50 rounded-2xl">
+    <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle>Testează Prompt-ul</CardTitle>
         <CardDescription>
@@ -68,9 +71,9 @@ export function PromptSandbox({ systemPrompt }: PromptSandboxProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col h-[400px]">
-          <ScrollArea className="flex-grow p-4 border rounded-lg bg-gray-50/50 dark:bg-gray-900/50" ref={scrollAreaRef}>
-            <div className="space-y-4">
+        <div className="flex flex-col h-[400px] border rounded-lg">
+          <ScrollArea className="flex-grow" ref={scrollAreaRef}>
+            <div className="p-4 space-y-4">
               {history.map((msg, index) => (
                 <div
                   key={index}
@@ -79,43 +82,44 @@ export function PromptSandbox({ systemPrompt }: PromptSandboxProps) {
                   })}
                 >
                   {msg.role === 'model' && (
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <Bot className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-gray-200 rounded-full">
+                      <Bot className="w-6 h-6 text-gray-700" />
                     </div>
                   )}
                   <div
                     className={cn('p-3 rounded-lg max-w-xs sm:max-w-md', {
-                      'bg-primary text-primary-foreground': msg.role === 'user',
-                      'bg-muted': msg.role === 'model',
+                      'bg-blue-600 text-white': msg.role === 'user',
+                      'bg-gray-200 text-gray-800': msg.role === 'model',
                     })}
                   >
                     <p className="text-sm">{msg.content}</p>
                   </div>
                    {msg.role === 'user' && (
-                    <div className="p-2 bg-muted rounded-full">
-                      <User className="w-6 h-6 text-foreground" />
+                    <div className="p-2 bg-gray-200 rounded-full">
+                      <User className="w-6 h-6 text-gray-700" />
                     </div>
                   )}
                 </div>
               ))}
               {isLoading && (
                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                        <Bot className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-gray-200 rounded-full">
+                        <Bot className="w-6 h-6 text-gray-700" />
                     </div>
-                    <div className="p-3 bg-muted rounded-lg flex items-center">
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                    <div className="p-3 bg-gray-200 rounded-lg flex items-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-gray-700" />
                     </div>
                  </div>
               )}
             </div>
           </ScrollArea>
-          <form onSubmit={handleSendMessage} className="flex gap-2 mt-4">
+          <form onSubmit={handleSendMessage} className="flex gap-2 p-4 border-t">
             <Input
               value={userMessage}
               onChange={e => setUserMessage(e.target.value)}
               placeholder="Scrie un mesaj..."
               disabled={isLoading}
+              className="flex-grow"
             />
             <Button type="submit" disabled={isLoading || !userMessage.trim()}>
               <Send className="h-4 w-4" />

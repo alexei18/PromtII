@@ -21,30 +21,29 @@ export function ResultDisplay({ prompt }: ResultDisplayProps) {
     toast({
       title: 'Copiat!',
       description: 'Prompt-ul a fost copiat în clipboard.',
-      className: "bg-accent text-accent-foreground border-0"
     });
     setTimeout(() => setHasCopied(false), 2000);
   };
 
   return (
-    <Card className="glass-effect hover-elevate shadow-2xl">
+    <Card className="w-full shadow-lg">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-3xl font-bold tracking-tight">Prompt-ul AI Generat</CardTitle>
-            <CardDescription className="text-lg text-muted-foreground">
+            <CardTitle className="text-2xl font-bold">Prompt-ul AI Generat</CardTitle>
+            <CardDescription>
               Acesta este "system prompt-ul" pentru agentul dvs. AI.
             </CardDescription>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleCopy}>
+          <Button variant="outline" size="icon" onClick={handleCopy}>
             {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             <span className="sr-only">Copiază prompt-ul</span>
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-64 w-full rounded-lg border bg-background/50 backdrop-blur-sm p-6">
-          <pre className="whitespace-pre-wrap text-base text-foreground font-medium">
+        <ScrollArea className="h-60 w-full rounded-md border bg-gray-50 p-4">
+          <pre className="whitespace-pre-wrap text-sm text-gray-800">
             {prompt}
           </pre>
         </ScrollArea>

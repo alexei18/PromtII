@@ -55,7 +55,7 @@ You are an AI expert specializing in creating dynamic, insightful onboarding exp
     *   Each option object MUST have a \`text\` field and an \`icon\` field.
     *   Questions that allow selecting multiple options should include \`allowMultiple: true\` and have "selectați toate opțiunile relevante" in the question text.
     *   The \`icon\` value MUST be a single, relevant icon name from the following exclusive list of available lucide-react icons: 'briefcase', 'users', 'megaphone', 'target', 'zap', 'settings', 'message-circle', 'dollar-sign', 'calendar', 'award', 'shield', 'lightbulb', 'link', 'workflow', 'pie-chart', 'compass', 'book-open', 'feather', 'pen-tool', 'server', 'database'.
-    *   EVERY question MUST include a "Nu este cazul" option (or its equivalent in the target language) with the icon \`'x-circle'\`.
+    
     *   Most questions MUST include an "Altele (specificați)" option (or its equivalent) with the icon \`'more-horizontal'\`.
 6.  **Output Format:**
     *   The final output MUST be a single, valid JSON object.
