@@ -35,13 +35,12 @@ const testPromptFlow = ai.defineFlow(
     outputSchema: TestPromptOutputSchema,
   },
   async ({ systemPrompt, userMessage, history }) => {
-    const { text } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash', // Explicitly use the desired model
+    const response = await ai.generate({
       system: systemPrompt,
       prompt: userMessage,
-      history: history,
     });
     
-    return { response: text };
+    return { response: response.text };
   }
 );
+

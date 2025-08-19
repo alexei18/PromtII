@@ -15,6 +15,7 @@ import { DynamicOnboardingForm, type DynamicOnboardingData } from '@/components/
 import { ResultDisplay } from '@/components/ResultDisplay';
 import { PromptSandbox } from '@/components/PromptSandbox';
 import { PersonaCard } from '@/components/PersonaCard';
+import { KnowledgeBaseUploader } from '@/components/KnowledgeBaseUploader';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import {
   startInitialAnalysisAction,
@@ -229,6 +230,10 @@ export default function Home() {
     }
   };
 
+  const handlePromptRegenerated = (newPrompt: string) => {
+    setFinalPrompt(newPrompt);
+  };
+
   const totalOnboardingSteps = 1 + questions.length;
   const getProgress = () => {
     if (questions.length === 0) return 0;
@@ -328,7 +333,11 @@ export default function Home() {
         return (
            <div className="space-y-6 animate-in fade-in zoom-in-95 w-full max-w-4xl">
             <ResultDisplay prompt={finalPrompt} />
-            <PromptSandbox systemPrompt={finalPrompt} />
+            <PromptSandbox key={finalPrompt} systemPrompt={finalPrompt} />
+            <KnowledgeBaseUploader
+              currentPrompt={finalPrompt}
+              onPromptRegenerated={handlePromptRegenerated}
+            />
             <div className="flex flex-wrap justify-center gap-4">
               <Button onClick={handleRestart} variant="outline"><FileText /> Începe o Nouă Analiză</Button>
               {personaCardData && (

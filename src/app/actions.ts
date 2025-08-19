@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { runFlow } from '@genkit-ai/flow';
 
 // Importăm fluxurile de orchestrare și cele de bază
 import { analyzeWebsiteForSurvey } from '@/ai/flows/analyze-website-for-survey';
@@ -9,11 +10,19 @@ import { constructTailoredSystemPrompt } from '@/ai/flows/generate-ai-prompt';
 import { analyzeWebsiteBasics } from '@/ai/flows/analyze-website-basics';
 import { testPrompt } from '@/ai/flows/test-prompt';
 import { generatePersonaCard } from '@/ai/flows/generate-persona-card';
-import { generateTailoredSurveyQuestions } from '@/ai/flows/generate-survey-questions'; // NOU: importat direct
+import { generateTailoredSurveyQuestions } from '@/ai/flows/generate-survey-questions';
+import { regeneratePromptWithKnowledgeFlow } from '@/ai/flows/regenerate-prompt-with-knowledge';
+
 
 // Importăm tipurile necesare
 import type { WebsiteAnalysis, PersonaCardData, ChatMessage, SurveyQuestion } from '@/lib/types';
 import { WebsiteAnalysisSchema } from '@/lib/types';
+
+// Schema for the file data coming from the client
+const FileDataSchema = z.object({
+  content: z.string(), // base64
+  type: z.string(),
+});
 
 
 // ACȚIUNEA PENTRU FAZA 1 - Analiza rapidă a site-ului
@@ -99,6 +108,34 @@ export async function generateFinalPromptAction(params: {
     throw new Error(`Failed to generate the final prompt. ${error.message}`);
   }
 }
+
+/**
+ * Regenerates the system prompt by incorporating a user-uploaded knowledge base.
+ * @param currentPrompt The existing system prompt.
+ * @param fileData The file object containing content (base64) and type.
+ * @returns The new, updated system prompt.
+ */
+export async function regeneratePromptWithKnowledgeBaseAction(
+  currentPrompt: string,
+  fileData: z.infer<typeof FileDataSchema>
+): Promise<string> {
+  console.log(`[Action] Received request to regenerate prompt with file.`);
+  
+  const validatedCurrentPrompt = z.string().min(1).parse(currentPrompt);
+  const validatedFileData = FileDataSchema.parse(fileData);
+
+  try {
+    const newPrompt = await runFlow(regeneratePromptWithKnowledgeFlow, {
+      currentPrompt: validatedCurrentPrompt,
+      file: validatedFileData,
+    });
+    return newPrompt;
+  } catch (error: any) {
+    console.error('[Action] Error running regeneratePromptWithKnowledgeFlow:', error);
+    throw new Error(error.message || 'An unexpected error occurred during prompt regeneration.');
+  }
+}
+
 
 // Acțiunile utilitare rămân neschimbate
 export async function testPromptAction(params: { systemPrompt: string, userMessage: string, history: ChatMessage[] }): Promise<string> {
