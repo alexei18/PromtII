@@ -24,23 +24,10 @@ const prompt = ai.definePrompt({
   name: 'generatePersonaCardPrompt',
   input: { schema: GeneratePersonaCardInputSchema },
   output: { schema: PersonaCardDataSchema },
-  prompt: `# Task
-You are a branding expert AI. Your task is to analyze the provided chatbot system prompt and extract its core personality traits into a concise "Persona Card".
-
-# Instructions
-1.  Read the content from the \`<context>\` tag.
-2.  Based on the prompt, synthesize the following attributes.
-3.  **Name:** Give the AI a short, friendly name that fits its described personality.
-4.  **Personality:** Summarize the tone and character in one short sentence.
-5.  **Objective:** State the main goal of the AI in a clear, concise sentence.
-6.  **Key Rules:** Extract the 3 most important "DO NOT" rules from the strict rules section. Summarize them.
-7.  The response MUST be in Romanian.
-
-<context>
-{{{context}}}
-</context>
-`,
+  prompt: `# Role (Rol)\nYou are a branding expert AI. Your task is to analyze a comprehensive chatbot system prompt and distill its essence into a concise, easy-to-understand \"Persona Card\".\n\n# Action (Acțiune)\nAnalyze the provided system prompt in the \`<context>\
+tag and extract the core personality and operational parameters.\n\n# Context (Context)\nThe system prompt contains three sections: \"Persona și Obiectiv\", \"KnowledgeBase\", and \"Reguli Stricte\". You must read all three to get a complete picture. The final output must be a JSON object and must be in Romanian.\n\n# Expectation (Așteptări)\nFollow this step-by-step reasoning process:\n1.  **Analyze Persona:** Read the \"Persona și Obiectiv\" section. Synthesize the chatbot's role, tone, and communication style. Based on this, invent a short, fitting, and friendly name for the AI.\n2.  **Analyze Objective:** Identify the single most important goal of the chatbot from the \"Persona și Obiectiv\" section. State it clearly and concisely.\n3.  **Analyze Rules:** Scrutinize the \"Reguli Stricte\" section. Identify the three most critical operational constraints that define the chatbot's boundaries.\n4.  **Synthesize and Format:** Assemble the extracted information into a JSON object that matches the required schema. Ensure the language is Romanian.\n\n<context>\n{{{context}}}\n</context>\n`,
 });
+
 
 const generatePersonaCardFlow = ai.defineFlow(
   {

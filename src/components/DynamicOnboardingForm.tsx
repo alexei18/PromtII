@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-const CUSTOM_ANSWER_KEY = 'Altele';
+const CUSTOM_ANSWER_KEY = 'Altele (specificați)';
 
 const createFormSchema = (questions: SurveyQuestion[]) => {
   const schemaShape = questions.reduce((acc, q) => {

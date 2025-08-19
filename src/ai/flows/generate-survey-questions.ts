@@ -27,101 +27,74 @@ const GenerateTailoredSurveyQuestionsOutputSchema = z.object({
 });
 export type GenerateTailoredSurveyQuestionsOutput = z.infer<typeof GenerateTailoredSurveyQuestionsOutputSchema>;
 
-export async function generateTailoredSurveyQuestions(
-  input: GenerateTailoredSurveyQuestionsInput
-): Promise<GenerateTailoredSurveyQuestionsOutput> {
-  return generateTailoredSurveyQuestionsFlow(input);
-}
+// MODIFICARE 1: Definim un input schema specific pentru prompt, care acceptă string-uri simple.
+const PromptInputSchema = z.object({
+  crawledText: z.string(),
+  analysisAsJson: z.string(), // Vom folosi acest câmp pentru a pasa JSON-ul ca string
+});
 
 const prompt = ai.definePrompt({
   name: 'generateSurveyQuestionsPrompt',
-  input: { schema: GenerateTailoredSurveyQuestionsInputSchema },
+  input: { schema: PromptInputSchema }, // Folosim noul schema de input
   output: { schema: GenerateTailoredSurveyQuestionsOutputSchema },
-  prompt: `# Identity
-You are an AI expert specializing in creating dynamic, insightful onboarding experiences for chatbot development. You are building a survey for non-technical business owners. Your primary output language is determined by the input content.
+  prompt: `
+  # Role (Rol)
+  You are a strategic AI expert specializing in user profiling and dynamic survey design. Your mission is to create an intelligent, adaptive survey that extracts the core business objectives of a user to inform the development of a custom AI chatbot. You are building this for non-technical business owners, so clarity and relevance are paramount.
 
-# Instructions
-1.  **Core Task:** Your goal is to generate a dynamic survey in JSON format to help a user define their chatbot's core features.
-2.  **Input Analysis:**
-    *   You will receive website content in \`<content>\` tags and a pre-made business analysis in \`<analysis>\` tags.
-    *   The \`<analysis>\` data is the **single source of truth** for the business profile (industry, audience, tone). Use the \`<content>\` for contextual understanding and examples, but base the logic of the questions primarily on the \`<analysis>\`.
-    *   The language of the survey MUST match the language of the business, as identified in the analysis.
-3.  **Thinking Step - Icon Selection:** Before generating the final JSON, internally reason about the most appropriate icon for each question and each option. The choice must be logical and reflect the concept behind the text. For example, for a question about sales, 'dollar-sign' is appropriate; for personality, 'lightbulb' or 'feather'.
-4.  **Question Generation:**
-    *   Based on the \`<analysis>\`, generate **between 10 and 20** insightful, multiple-choice questions.
-    *   The questions must cover these categories: Core Objective & Scope, Personality & Tone, Functionality & Features, Integration & Technical, Success Measurement.
-5.  **Answer Options & Icons:**
-    *   For each question, provide 3-4 relevant, multiple-choice \`options\`.
-    *   Each option object MUST have a \`text\` field and an \`icon\` field.
-    *   Questions that allow selecting multiple options should include \`allowMultiple: true\` and have "selectați toate opțiunile relevante" in the question text.
-    *   The \`icon\` value MUST be a single, relevant icon name from the following exclusive list of available lucide-react icons: 'briefcase', 'users', 'megaphone', 'target', 'zap', 'settings', 'message-circle', 'dollar-sign', 'calendar', 'award', 'shield', 'lightbulb', 'link', 'workflow', 'pie-chart', 'compass', 'book-open', 'feather', 'pen-tool', 'server', 'database'.
-    
-    *   Most questions MUST include an "Altele (specificați)" option (or its equivalent) with the icon \`'more-horizontal'\`.
-6.  **Output Format:**
-    *   The final output MUST be a single, valid JSON object.
-    *   Do not add any text, explanations, or markdown formatting outside the JSON block.
+  # Action (Acțiune)
+  Your core task is to generate a dynamic, multi-choice survey in JSON format. This survey will serve as a strategic tool to understand the user's business goals and define the chatbot's essential features.
 
-# Example (Few-Shot Learning)
-<example>
-  <user_query>
-    <analysis>
-      {
-        "industry": "Agenție de design digital",
-        "targetAudience": "Startup-uri",
-        "toneOfVoice": "Creativ și entuziast",
-        "language": "Romanian"
-      }
-    </analysis>
-    <content>
-    CreativePeak este o agenție de design digital. Misiunea noastră este să ajutăm startup-urile.
-    </content>
-  </user_query>
-  <assistant_response>
-  {
-    "questions": [
-      {
-        "category": "Core Objective & Scope",
-        "question": "Care sunt scopurile principale ale agentului AI pe site-ul CreativePeak? (selectați toate opțiunile relevante)",
-        "icon": "target",
-        "allowMultiple": true,
-        "options": [
-          {"text": "Să colecteze datele de contact (generare de lead-uri).", "icon": "briefcase"},
-          {"text": "Să ofere instant o estimare de preț aproximativă.", "icon": "dollar-sign"},
-          {"text": "Să răspundă la întrebări frecvente despre servicii.", "icon": "message-circle"},
-          {"text": "Nu este cazul", "icon": "x-circle"}
-        ]
-      },
-      {
-        "category": "Personality & Tone",
-        "question": "Ce personalitate ar trebui să adopte agentul?",
-        "icon": "lightbulb",
-        "options": [
-          {"text": "Creativ și entuziast, folosind un limbaj modern.", "icon": "feather"},
-          {"text": "Profesional și direct, axat pe eficiență.", "icon": "pen-tool"},
-          {"text": "Consultativ și educativ, explicând procesul.", "icon": "book-open"},
-          {"text": "Altele (specificați)", "icon": "more-horizontal"},
-          {"text": "Nu este cazul", "icon": "x-circle"}
-        ]
-      }
-    ]
-  }
-  </assistant_response>
-</example>
+  # Context (Context)
+  You will be provided with two sources of information:
+  1.  \`<analysis>\`: A JSON object containing the pre-verified business profile (industry, target audience, tone of voice). This is your primary source of truth.
+  2.  \`<content>\`: Raw text crawled from the user's website. Use this for deeper contextual understanding, identifying key business terms, and finding examples to make the questions more specific and relatable.
 
-# Output Schema
-The output must be a JSON object with a single key "questions", which is an array of objects. Each object must have "category", "question", "icon", and "options" (which is an array of objects, each with "text" and "icon").
+  The survey's language MUST be Romanian.
 
-<analysis>
-{{{json analysis}}}
-</analysis>
+  # Expectation (Așteptări)
+  Your process must follow a sophisticated, multi-step reasoning model before generating the final output.
 
-<content>
-{{{crawledText}}}
-</content>
-`,
+  ## Step 1: Tree-of-Thought (ToT) Strategic Planning
+  Instead of generating a simple linear list of questions, you must first explore multiple strategic paths for profiling the user. Internally, generate three potential branches for the survey's focus:
+  *   **Branch A: Marketing & Lead Generation Focus:** Questions centered on attracting and converting new customers.
+  *   **Branch B: Customer Support & Efficiency Focus:** Questions about automating responses and improving user experience.
+  *   **Branch C: Brand & Content Strategy Focus:** Questions about how the chatbot can embody the brand's voice and guide users through content.
+  Evaluate which branch (or a hybrid of them) is most relevant based on the provided \`<analysis>\` and \`<content>\`. Select the most promising strategic path to guide your question generation.
+
+  ## Step 2: Chain-of-Thought (CoT) Question Generation
+  Following your chosen strategic path, generate **10 to 15** insightful, multiple-choice questions. For each question, perform the following sub-steps:
+  *   **Categorization:** Assign the question to one of these categories: Core Objective & Scope, Personality & Tone, Functionality & Features, Integration & Technical, Success Measurement.
+  *   **Wording:** Formulate a clear, concise question that is easy for a non-technical user to understand. Integrate specific terms from the \`<content>\` where appropriate to maximize personalization.
+  *   **Options:** Provide 3-4 relevant, distinct multiple-choice options.
+  *   **Icon Selection:** For the question and each option, select the most logically fitting icon from the exclusive list provided. The choice must be deliberate and meaningful.
+  *   **Multiple Selections:** Questions that allow multiple answers must include \`allowMultiple: true\` and the text "selectați toate opțiunile relevante".
+  *   **"Other" Option:** Most questions should include an "Altele (specificați)" option with the icon \`more-horizontal\`.
+
+  ## Step 3: Self-Correction and Refinement
+  Review the full set of generated questions. Critique your own work. Ask yourself:
+  *   "Are these questions truly insightful, or are they generic?"
+  *   "Do they logically flow from the chosen strategic path?"
+  *   "Is there a better icon for this concept?"
+  Refine the questions based on this internal feedback loop.
+
+  ## Step 4: Final JSON Output
+  Produce a single, valid JSON object as the final output. It must strictly adhere to the output schema. Do not include any explanations, comments, or markdown formatting outside the JSON structure.
+
+  ### Icon List (Exclusive)
+  You MUST use icons only from this list: 'briefcase', 'users', 'megaphone', 'target', 'zap', 'settings', 'message-circle', 'dollar-sign', 'calendar', 'award', 'shield', 'lightbulb', 'link', 'workflow', 'pie-chart', 'compass', 'book-open', 'feather', 'pen-tool', 'server', 'database', 'more-horizontal', 'x-circle'.
+
+  <analysis>
+  {{{analysisAsJson}}}
+  </analysis>
+
+  <content>
+  {{{crawledText}}}
+  </content>
+  `
 });
 
-const generateTailoredSurveyQuestionsFlow = ai.defineFlow(
+
+export const generateTailoredSurveyQuestionsFlow = ai.defineFlow(
   {
     name: 'generateTailoredSurveyQuestionsFlow',
     inputSchema: GenerateTailoredSurveyQuestionsInputSchema,
@@ -132,7 +105,14 @@ const generateTailoredSurveyQuestionsFlow = ai.defineFlow(
     let delay = 1000;
     while (retries > 0) {
       try {
-        const { output } = await prompt(input);
+        // MODIFICARE 2: Pregătim input-ul pentru prompt AICI.
+        const promptInput = {
+          crawledText: input.crawledText,
+          analysisAsJson: JSON.stringify(input.analysis, null, 2), // Convertim obiectul în string
+        };
+
+        const { output } = await prompt(promptInput); // Trimitem datele pregătite
+
         if (output) {
           const questions = output.questions.map(question => ({
             ...question,
@@ -156,3 +136,9 @@ const generateTailoredSurveyQuestionsFlow = ai.defineFlow(
     throw new Error('Failed to generate survey questions and exited retry loop unexpectedly.');
   }
 );
+
+export async function generateTailoredSurveyQuestions(
+  input: GenerateTailoredSurveyQuestionsInput
+): Promise<GenerateTailoredSurveyQuestionsOutput> {
+  return await generateTailoredSurveyQuestionsFlow(input);
+}
