@@ -33,7 +33,7 @@ export default function SubscribePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-500">Enter payment information</h3>
-                  <p className="text-sm text-gray-600">$0 today - You won't be charged until August 16</p>
+                  <p className="text-sm text-gray-600">$0 today - You won&apos;t be charged until August 16</p>
                 </div>
               </li>
                <li className="flex items-start">
@@ -43,7 +43,7 @@ export default function SubscribePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-500">August 14: Get an email reminder</h3>
-                  <p className="text-sm text-gray-600">We'll remind you 2 days before your trial ends</p>
+                  <p className="text-sm text-gray-600">We&apos;ll remind you 2 days before your trial ends</p>
                 </div>
               </li>
               <li className="flex items-start">
@@ -55,7 +55,7 @@ export default function SubscribePage() {
               </li>
             </ul>
             <p className="text-sm text-gray-600 mt-8">
-              Don't want to add your payment details? <a href="#" className="text-blue-600">Get our limited version here</a>
+              Don&apos;t want to add your payment details? <a href="#" className="text-blue-600">Get our limited version here</a>
             </p>
           </div>
 

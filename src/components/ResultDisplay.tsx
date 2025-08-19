@@ -1,9 +1,9 @@
 'use client';
 
-import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,7 +15,7 @@ export function ResultDisplay({ prompt }: ResultDisplayProps) {
   const [hasCopied, setHasCopied] = useState(false);
   const { toast } = useToast();
 
-  const handleCopy = () => {
+  const copyToClipboard = () => {
     navigator.clipboard.writeText(prompt);
     setHasCopied(true);
     toast({
@@ -26,28 +26,29 @@ export function ResultDisplay({ prompt }: ResultDisplayProps) {
   };
 
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-2xl font-bold">Prompt-ul AI Generat</CardTitle>
-            <CardDescription>
-              Acesta este "system prompt-ul" pentru agentul dvs. AI.
-            </CardDescription>
-          </div>
-          <Button variant="outline" size="icon" onClick={handleCopy}>
-            {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            <span className="sr-only">Copiază prompt-ul</span>
+    <Card className="w-full shadow-lg border-gray-200 rounded-2xl">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-xl font-bold text-gray-800">
+          {'Prompt-ul Tău Personalizat'}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={copyToClipboard}>
+            {hasCopied ? (
+              <Check className="h-5 w-5 text-green-500" />
+            ) : (
+              <Copy className="h-5 w-5 text-gray-500" />
+            )}
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-60 w-full rounded-md border bg-gray-50 p-4">
-          <pre className="whitespace-pre-wrap text-sm text-gray-800">
-            {prompt}
+          <pre className="whitespace-pre-wrap text-sm text-gray-700">
+            <code>{prompt}</code>
           </pre>
         </ScrollArea>
       </CardContent>
     </Card>
   );
 }
+

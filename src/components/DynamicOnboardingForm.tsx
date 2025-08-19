@@ -93,9 +93,9 @@ const VALID_ICONS = {
 };
 
 const renderIcon = (iconName: string | undefined) => {
-    if (!iconName) return <HelpCircle className="h-5 w-5" />;
+    if (!iconName) return <HelpCircle className="h-5 w-5 text-black" />;
     const IconComponent = VALID_ICONS[iconName as keyof typeof VALID_ICONS];
-    return IconComponent ? <IconComponent className="h-5 w-5" /> : <HelpCircle className="h-5 w-5" />;
+    return IconComponent ? <IconComponent className="h-5 w-5 text-black" /> : <HelpCircle className="h-5 w-5 text-black" />;
 };
 
 export function DynamicOnboardingForm({ questions, onSubmit, onBack, onStepChange }: DynamicOnboardingFormProps) {
@@ -256,7 +256,7 @@ export function DynamicOnboardingForm({ questions, onSubmit, onBack, onStepChang
         </div>
 
         <div className="p-0 mt-8 flex items-center justify-between">
-          <Button type="button" variant="ghost" onClick={handlePrevious}>
+          <Button type="button" variant="outline" onClick={handlePrevious}>
             <ChevronLeft className="mr-2 h-4 w-4" /> Înapoi
           </Button>
           <Button type="button" onClick={handleNext}>

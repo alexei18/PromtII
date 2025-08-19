@@ -41,7 +41,7 @@ const WelcomeStep = ({ onStart }: { onStart: () => void }) => (
     transition={{ duration: 0.3 }}
     className="text-center bg-white rounded-2xl shadow-2xl p-8 sm:p-12 max-w-lg mx-auto"
   >
-    <div className="w-16 h-16 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+    <div className="w-16 h-16 mx-auto mb-6 bg-white border border-gray-200 rounded-full flex items-center justify-center">
       <span className="text-3xl">👋</span>
     </div>
     <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Bine ai venit la aichat.md!</h1>
@@ -271,7 +271,11 @@ export default function Home() {
               <Progress value={progress} className="mb-8" />
 
               {step === 'url' && (
-                <form action={handleUrlSubmit}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  handleUrlSubmit(formData);
+                }}>
                   <CardContent className="p-0">
                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Introduceți URL-ul site-ului</h3>
                     <div className="grid w-full items-center gap-2">
@@ -302,7 +306,7 @@ export default function Home() {
                       )} />
                     </CardContent>
                     <CardFooter className="p-0 mt-8 flex items-center justify-between">
-                       <Button type="button" variant="ghost" onClick={handleBack}><ChevronLeft className="mr-2 h-4 w-4" /> Înapoi</Button>
+                       <Button type="button" variant="outline" onClick={handleBack}><ChevronLeft className="mr-2 h-4 w-4" /> Înapoi</Button>
                        <Button type="submit" disabled={isLoading}>Următorul <ChevronRight className="ml-2 h-4 w-4" /></Button>
                     </CardFooter>
                   </form>

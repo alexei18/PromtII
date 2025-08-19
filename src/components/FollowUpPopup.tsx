@@ -33,7 +33,12 @@ export default function FollowUpPopup({
         <DialogHeader>
           <DialogTitle>Don't miss out!</DialogTitle>
           <DialogDescription>
-            Get full access to all our premium features. Try our Starter plan for free for 7 days.
+                      <DialogDescription>
+                        <DialogDescription>
+            Introduceți adresa de email pentru a salva progresul și a primi
+            actualizări. Puteți sta liniștit, nu vom trimite spam.
+          </DialogDescription>
+          </DialogDescription>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
