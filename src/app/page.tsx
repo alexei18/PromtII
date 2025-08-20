@@ -28,6 +28,7 @@ import type { SurveyQuestion, WebsiteAnalysis, PersonaCardData } from '@/lib/typ
 import { WebsiteAnalysisSchema } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { QuickScanSurvey, type QuickSurveyData } from '@/components/QuickScanSurvey';
+import { GamingLoadingScreen } from '@/components/GamingLoadingScreen';
 import SubscriptionPopup from '@/components/SubscriptionPopup';
 import { Progress } from '@/components/ui/progress';
 
@@ -383,9 +384,9 @@ export default function Home() {
       </AnimatePresence>
 
       {isLoading && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+        <>
           {(loadingMessage === 'Se scanează rapid site-ul...' || loadingMessage === 'Se generează întrebări personalizate...') ? (
-            <>
+            <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
               <div className="text-center mb-4">
                 <p className="mt-2 text-lg font-medium text-foreground">{loadingMessage}</p>
                 <p className="text-sm text-muted-foreground">În acest timp, vă rugăm să răspundeți la câteva întrebări.</p>
@@ -395,14 +396,11 @@ export default function Home() {
                 onComplete={() => setQuickSurveyCompleted(true)}
                 isAnalysisInProgress={flowMode === 'url' ? !analysisCompleted : !aiQuestionsGenerated}
               />
-            </>
+            </div>
           ) : (
-            <>
-              <Bot className="h-16 w-16 animate-bounce text-primary" />
-              <p className="mt-4 text-lg font-medium text-foreground">{loadingMessage}</p>
-            </>
+            <GamingLoadingScreen loadingMessage={loadingMessage} />
           )}
-        </div>
+        </>
       )}
 
       {step === 'result' && (
