@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { SurveyQuestion, WebsiteAnalysis, PersonaCardData } from '@/lib/types';
 import { WebsiteAnalysisSchema } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { QuickScanSurvey, type QuickSurveyData } from '@/components/QuickScanSurvey';
 import SubscriptionPopup from '@/components/SubscriptionPopup';
 import { Progress } from '@/components/ui/progress';
 
@@ -66,8 +67,13 @@ export default function Home() {
   const [finalPrompt, setFinalPrompt] = useState('');
   const [personaCardData, setPersonaCardData] = useState<PersonaCardData | null>(null);
   const [initialAnalysis, setInitialAnalysis] = useState<WebsiteAnalysis | null>(null);
+  const [quickSurveyAnswers, setQuickSurveyAnswers] = useState<QuickSurveyData | null>(null);
   const [formStep, setFormStep] = useState(0);
   
+  const [quickSurveyCompleted, setQuickSurveyCompleted] = useState(false);
+  const [analysisCompleted, setAnalysisCompleted] = useState(false);
+  const [aiQuestionsGenerated, setAiQuestionsGenerated] = useState(false);
+
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const router = useRouter();
 
@@ -80,6 +86,16 @@ export default function Home() {
     resolver: zodResolver(WebsiteAnalysisSchema),
     defaultValues: { industry: '', targetAudience: '', toneOfVoice: '' },
   });
+
+  useEffect(() => {
+    if (flowMode === 'url' && quickSurveyCompleted && analysisCompleted) {
+      setStatus('idle');
+      setStep('form');
+    } else if (flowMode === 'manual' && quickSurveyCompleted && aiQuestionsGenerated) {
+      setStatus('idle');
+      setStep('form');
+    }
+  }, [quickSurveyCompleted, analysisCompleted, aiQuestionsGenerated, flowMode]);
 
   useEffect(() => {
     if (step === 'form' && urlRef.current && flowMode === 'url') {
@@ -128,12 +144,11 @@ export default function Home() {
       setInitialAnalysis(analysis);
       setQuestions(questions);
       initialCrawledTextRef.current = initialCrawledText;
-      setStep('form');
+      setAnalysisCompleted(true); // Mark analysis as complete
     } catch (err: any) {
       setError(`A apărut o eroare: ${err.message}`);
       toast({ variant: "destructive", title: "Eroare de analiză", description: err.message });
-    } finally {
-      setStatus('idle');
+      setStatus('error'); // Show error and stop
     }
   };
 
@@ -147,21 +162,23 @@ export default function Home() {
     setStatus('loading');
     setLoadingMessage('Se generează întrebări personalizate...');
     setInitialAnalysis(data);
+    setFlowMode('manual');
 
-    try {
-      const { questions } = await generateSurveyWithoutWebsiteAction(data);
-      setQuestions(questions);
-      setStep('form');
-    } catch (err: any) {
-      setError(`A apărut o eroare: ${err.message}`);
-      toast({ variant: "destructive", title: "Eroare la generare", description: err.message });
-    } finally {
-      setStatus('idle');
-    }
+    // Start AI question generation in the background
+    generateSurveyWithoutWebsiteAction(data)
+      .then(({ questions }) => {
+        setQuestions(questions);
+        setAiQuestionsGenerated(true);
+      })
+      .catch((err: any) => {
+        setError(`A apărut o eroare: ${err.message}`);
+        toast({ variant: "destructive", title: "Eroare la generare", description: err.message });
+        setStatus('error');
+      });
   };
 
   const handleFormSubmit = async (data: DynamicOnboardingData) => {
-    if (isLoading) return; // Prevent spamming
+    if (status === 'loading') return;
     if (!initialAnalysis) {
       setError("Eroare critică: Analiza inițială lipsește.");
       toast({ variant: "destructive", title: "Eroare", description: "Analiza inițială lipsește." });
@@ -178,6 +195,7 @@ export default function Home() {
         surveyResponses: data.responses,
         deepCrawledText: textToUse,
         initialAnalysis: initialAnalysis,
+        quickSurveyResponses: quickSurveyAnswers,
       });
 
       setFinalPrompt(result.finalPrompt);
@@ -186,8 +204,8 @@ export default function Home() {
     } catch (err: any) {
       setError(`A apărut o eroare la generarea prompt-ului final: ${err.message}`);
       toast({ variant: "destructive", title: "Eroare la generarea prompt-ului", description: err.message });
-      setStatus('error'); // Keep user on the form to allow retry
-      setStep('form'); // Or handle error state appropriately
+      setStatus('error');
+      setStep('form');
     } finally {
       setStatus('idle');
       setLoadingMessage('');
@@ -202,6 +220,10 @@ export default function Home() {
     setQuestions([]);
     setPersonaCardData(null);
     setInitialAnalysis(null);
+    setQuickSurveyAnswers(null);
+    setQuickSurveyCompleted(false);
+    setAnalysisCompleted(false);
+    setAiQuestionsGenerated(false);
     urlRef.current = null;
     initialCrawledTextRef.current = null;
     deepCrawlResultRef.current = null;
@@ -362,8 +384,24 @@ export default function Home() {
 
       {isLoading && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-          <Bot className="h-16 w-16 animate-bounce text-primary" />
-          <p className="mt-4 text-lg font-medium text-foreground">{loadingMessage}</p>
+          {(loadingMessage === 'Se scanează rapid site-ul...' || loadingMessage === 'Se generează întrebări personalizate...') ? (
+            <>
+              <div className="text-center mb-4">
+                <p className="mt-2 text-lg font-medium text-foreground">{loadingMessage}</p>
+                <p className="text-sm text-muted-foreground">În acest timp, vă rugăm să răspundeți la câteva întrebări.</p>
+              </div>
+              <QuickScanSurvey 
+                onAnswersChange={setQuickSurveyAnswers}
+                onComplete={() => setQuickSurveyCompleted(true)}
+                isAnalysisInProgress={flowMode === 'url' ? !analysisCompleted : !aiQuestionsGenerated}
+              />
+            </>
+          ) : (
+            <>
+              <Bot className="h-16 w-16 animate-bounce text-primary" />
+              <p className="mt-4 text-lg font-medium text-foreground">{loadingMessage}</p>
+            </>
+          )}
         </div>
       )}
 

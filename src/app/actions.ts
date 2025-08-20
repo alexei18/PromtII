@@ -15,7 +15,7 @@ import { regeneratePromptWithKnowledgeFlow } from '@/ai/flows/regenerate-prompt-
 
 
 // Importăm tipurile necesare
-import type { WebsiteAnalysis, PersonaCardData, ChatMessage, SurveyQuestion } from '@/lib/types';
+import type { WebsiteAnalysis, PersonaCardData, ChatMessage, SurveyQuestion, QuickSurveyData } from '@/lib/types';
 import { WebsiteAnalysisSchema } from '@/lib/types';
 
 // Schema for the file data coming from the client
@@ -78,6 +78,7 @@ export async function generateFinalPromptAction(params: {
   surveyResponses: Record<string, string>;
   deepCrawledText: string | null; // Poate fi null dacă s-a sărit peste pasul cu URL
   initialAnalysis: WebsiteAnalysis; // Analiza inițială, confirmată sau introdusă manual
+  quickSurveyResponses: QuickSurveyData;
 }): Promise<{ finalPrompt: string; personaCard: PersonaCardData }> {
   console.log(`[ACTION] Starting final prompt generation.`);
   try {
@@ -95,6 +96,7 @@ export async function generateFinalPromptAction(params: {
       formResponses: params.surveyResponses,
       crawledText: textToUse,
       analysis: finalAnalysis, // Folosim cea mai recentă și precisă analiză
+      quickSurveyResponses: params.quickSurveyResponses,
     });
 
     // Generăm cardul de personalitate

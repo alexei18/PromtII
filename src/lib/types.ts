@@ -40,3 +40,16 @@ export const PersonaCardDataSchema = z.object({
 });
 
 export type PersonaCardData = z.infer<typeof PersonaCardDataSchema>;
+
+export const QuickSurveyDataSchemaContents = z.object({
+  communicationChannels: z.array(z.string()).optional(),
+  customChannel: z.string().optional(),
+  aiFamiliarity: z.string().optional(),
+  messageVolume: z.string().optional(),
+  mainObjective: z.string().optional(),
+  userAction: z.string().optional(),
+});
+
+export const QuickSurveyDataSchema = QuickSurveyDataSchemaContents.nullable();
+
+export type QuickSurveyData = z.infer<typeof QuickSurveyDataSchema>;

@@ -46,8 +46,8 @@ const prompt = ai.definePrompt({
 
   # Context (Context)
   You will be provided with two sources of information:
-  1.  \`<analysis>\`: A JSON object containing the pre-verified business profile (industry, target audience, tone of voice). This is your primary source of truth.
-  2.  \`<content>\`: Raw text crawled from the user's website. Use this for deeper contextual understanding, identifying key business terms, and finding examples to make the questions more specific and relatable.
+  1.  '<analysis>': A JSON object containing the pre-verified business profile (industry, target audience, tone of voice). This is your primary source of truth.
+  2.  '<content>': Raw text crawled from the user's website. Use this for deeper contextual understanding, identifying key business terms, and finding examples to make the questions more specific and relatable.
 
   The survey's language MUST be Romanian.
 
@@ -59,16 +59,23 @@ const prompt = ai.definePrompt({
   *   **Branch A: Marketing & Lead Generation Focus:** Questions centered on attracting and converting new customers.
   *   **Branch B: Customer Support & Efficiency Focus:** Questions about automating responses and improving user experience.
   *   **Branch C: Brand & Content Strategy Focus:** Questions about how the chatbot can embody the brand's voice and guide users through content.
-  Evaluate which branch (or a hybrid of them) is most relevant based on the provided \`<analysis>\` and \`<content>\`. Select the most promising strategic path to guide your question generation.
+  Evaluate which branch (or a hybrid of them) is most relevant based on the provided '<analysis>' and '<content>'. Select the most promising strategic path to guide your question generation.
 
   ## Step 2: Chain-of-Thought (CoT) Question Generation
   Following your chosen strategic path, generate **10 to 15** insightful, multiple-choice questions. For each question, perform the following sub-steps:
+  *   **Negative Constraints:** DO NOT ask questions about the following topics, as they have already been answered by the user:
+      *   The specific communication channels where the bot will be integrated (e.g., Website, Facebook, WhatsApp).
+      *   The user's general familiarity with AI or automation.
+      *   The estimated monthly volume of customer messages.
+      *   The primary high-level objective for using the AI (e.g., automating FAQs, increasing sales).
+      *   The most frequent, specific action users should perform (e.g., booking an appointment, checking order status).
+      Your task is to ask *deeper, more specific* questions that build upon this initial context.
   *   **Categorization:** Assign the question to one of these categories: Core Objective & Scope, Personality & Tone, Functionality & Features, Integration & Technical, Success Measurement.
-  *   **Wording:** Formulate a clear, concise question that is easy for a non-technical user to understand. Integrate specific terms from the \`<content>\` where appropriate to maximize personalization.
+  *   **Wording:** Formulate a clear, concise question that is easy for a non-technical user to understand. Integrate specific terms from the '<content>' where appropriate to maximize personalization.
   *   **Options:** Provide 3-4 relevant, distinct multiple-choice options.
   *   **Icon Selection:** For the question and each option, select the most logically fitting icon from the exclusive list provided. The choice must be deliberate and meaningful.
-  *   **Multiple Selections:** Questions that allow multiple answers must include \`allowMultiple: true\` and the text "selectați toate opțiunile relevante".
-  *   **"Other" Option:** Most questions should include an "Altele (specificați)" option with the icon \`more-horizontal\`.
+  *   **Multiple Selections:** Questions that allow multiple answers must include 'allowMultiple: true' and the text "selectați toate opțiunile relevante".
+  *   **"Other" Option:** Most questions should include an "Altele (specificați)" option with the icon 'more-horizontal'.
 
   ## Step 3: Self-Correction and Refinement
   Review the full set of generated questions. Critique your own work. Ask yourself:

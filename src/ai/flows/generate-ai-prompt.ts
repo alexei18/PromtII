@@ -11,12 +11,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { WebsiteAnalysis } from '@/lib/types';
-import { WebsiteAnalysisSchema } from '@/lib/types';
+import { WebsiteAnalysisSchema, QuickSurveyDataSchema } from '@/lib/types';
 
 const ConstructTailoredSystemPromptInputSchema = z.object({
   formResponses: z.record(z.string()).describe('User-provided responses from the dynamic survey form.'),
   crawledText: z.string().describe('The extracted text content from the crawled website. Can be empty if the user skipped this step.'),
   analysis: WebsiteAnalysisSchema.describe('User-confirmed analysis of the website.'),
+  quickSurveyResponses: QuickSurveyDataSchema.describe('User-provided responses from the initial quick survey.'),
 });
 export type ConstructTailoredSystemPromptInput = z.infer<typeof ConstructTailoredSystemPromptInputSchema>;
 
@@ -39,11 +40,24 @@ export const constructTailoredSystemPromptFlow = ai.defineFlow(
     const {
       formResponses,
       crawledText,
+      quickSurveyResponses,
     } = input;
 
-    const formattedResponses = Object.entries(formResponses)
-      .map(([question, answer]) => `- Întrebare: "${question}"\n  - Răspuns: "${answer}"`)
+    const formattedDynamicResponses = Object.entries(formResponses)
+      .map(([question, answer]) => `- Întrebare: "${question}"\n  - Răspuns: "${answer}"`) // Corrected escaping for newline and quotes within the string literal
       .join('\n');
+
+    const formattedQuickSurveyResponses = quickSurveyResponses 
+      ? Object.entries(quickSurveyResponses)
+          .map(([key, value]) => {
+            if (!value || (Array.isArray(value) && value.length === 0)) return null;
+            const question = key; // In the future, map keys to full questions if needed
+            const answer = Array.isArray(value) ? value.join(', ') : value;
+            return `- ${question}: ${answer}`;
+          })
+          .filter(Boolean)
+          .join('\n')
+      : 'N/A';
 
     const metaPrompt = `# CRISPE Framework: System Prompt Generation
 
@@ -51,9 +65,10 @@ export const constructTailoredSystemPromptFlow = ai.defineFlow(
 You are a world-class AI architect specializing in crafting bespoke system prompts for enterprise-level conversational AI agents. You are a master of marketing, psychology, and AI engineering, capable of synthesizing diverse data sources into a single, coherent, and highly effective set of instructions for another AI.
 
 ## Insight (Perspectivă)
-The goal is to create a "system prompt" for a new customer service chatbot. This prompt will be the chatbot's permanent brain. It needs to be perfect. The final output must be in Romanian. You have two sources of data:
-1.  <WebsiteContent>: Raw, unstructured text from the client's website. This provides foundational knowledge but may be outdated or incomplete.
-2.  <ClientResponses>: Direct answers from the client to a strategic survey. This information is the **absolute source of truth** and MUST override any conflicting information from the website content.
+The goal is to create a "system prompt" for a new customer service chatbot. This prompt will be the chatbot's permanent brain. It needs to be perfect. The final output must be in Romanian. You have three sources of data:
+1.  <InitialContext>: High-level, strategic answers from the client about their goals. This sets the overall direction.
+2.  <WebsiteContent>: Raw, unstructured text from the client's website. This provides foundational knowledge but may be outdated or incomplete.
+3.  <DetailedClientResponses>: Direct answers from the client to a detailed, strategic survey. This information is the **absolute source of truth** and MUST override any conflicting information from the other sources.
 
 ## Statement (Declarație)
 Your task is to generate the complete, final system prompt for the chatbot. The prompt must be structured into three specific sections in a precise order: ### Persona și Obiectiv, <KnowledgeBase>, and ### Reguli Stricte.
@@ -65,10 +80,10 @@ Your work is meticulous, strategic, and precise. You think like an architect, bu
 Follow this exact multi-step process to construct the final prompt. This is a meta-prompting loop where you will generate, critique, and refine your own work.
 
 ### Step 1: Initial Synthesis and Knowledge Extraction
-- **Analyze <ClientResponses>:** First, meticulously review every client response. This is the most critical data.
+- **Analyze <InitialContext> and <DetailedClientResponses>:** First, meticulously review every client response from both sources. This is the most critical data. The detailed responses are the ultimate source of truth.
 - **Analyze <WebsiteContent>:** Next, scan the website content.
 - **Construct the <KnowledgeBase>:**
-    - Extract key information (services, products, contact details, hours, procedures, company info) from both sources.
+    - Extract key information (services, products, contact details, hours, procedures, company info) from all sources.
     - Structure this information using clear, descriptive XML tags (e.g., <servicii>, <produs>, <contact>, <program_lucru>).
     - **Crucial Conflict Resolution:** Where the client's responses contradict the website content, the client's response is ALWAYS correct. You must use the client's data.
     - If website content is empty or 'N/A', build the knowledge base exclusively from the client's responses. Do not invent information.
@@ -91,13 +106,17 @@ Follow this exact multi-step process to construct the final prompt. This is a me
 - The output must be a single, raw text block.
 - Do not add any titles, explanations, or conversational text. The output should be ready to be copied and pasted directly as a system prompt.
 
+<InitialContext>
+${formattedQuickSurveyResponses}
+</InitialContext>
+
 <WebsiteContent>
 ${crawledText || 'N/A'}
 </WebsiteContent>
 
-<ClientResponses>
-${formattedResponses}
-</ClientResponses>`;
+<DetailedClientResponses>
+${formattedDynamicResponses}
+</DetailedClientResponses>`;
 
 
 
