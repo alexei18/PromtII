@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { runFlow } from '@genkit-ai/flow';
+import { headers } from 'next/headers';
 
 // Importăm fluxurile de orchestrare și cele de bază
 import { analyzeWebsiteForSurvey } from '@/ai/flows/analyze-website-for-survey';
@@ -12,6 +13,10 @@ import { testPrompt } from '@/ai/flows/test-prompt';
 import { generatePersonaCard } from '@/ai/flows/generate-persona-card';
 import { generateTailoredSurveyQuestions } from '@/ai/flows/generate-survey-questions';
 import { regeneratePromptWithKnowledgeFlow } from '@/ai/flows/regenerate-prompt-with-knowledge';
+
+// Importăm utilitarele pentru optimizare
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limiter';
+import { optimizeTextForAI, logTextOptimization } from '@/lib/text-optimizer';
 
 
 // Importăm tipurile necesare
@@ -31,7 +36,17 @@ export async function startInitialAnalysisAction(url: string): Promise<{
   analysis: WebsiteAnalysis;
   initialCrawledText: string;
 }> {
-  console.log(`[ACTION] Starting PHASE 1: Quick scan for ${url}`);
+  // Rate limiting check
+  const headersList = await headers();
+  const clientId = getClientIdentifier(headersList);
+  const rateLimitResult = checkRateLimit(clientId);
+  
+  if (!rateLimitResult.allowed) {
+    const waitTime = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+    throw new Error(`Prea multe cereri. Te rugăm să aștepți ${waitTime} secunde înainte să încerci din nou.`);
+  }
+  
+  console.log(`[ACTION] Starting PHASE 1: Quick scan for ${url}. Rate limit: ${rateLimitResult.remaining} requests remaining.`);
   const result = await analyzeWebsiteForSurvey({ url });
   console.log(`[ACTION] PHASE 1 complete. Returning survey questions and analysis.`);
   return {
@@ -80,18 +95,34 @@ export async function generateFinalPromptAction(params: {
   initialAnalysis: WebsiteAnalysis; // Analiza inițială, confirmată sau introdusă manual
   quickSurveyResponses: QuickSurveyData;
 }): Promise<{ finalPrompt: string; personaCard: PersonaCardData }> {
-  console.log(`[ACTION] Starting final prompt generation.`);
+  // Rate limiting check
+  const headersList = await headers();
+  const clientId = getClientIdentifier(headersList);
+  const rateLimitResult = checkRateLimit(clientId);
+  
+  if (!rateLimitResult.allowed) {
+    const waitTime = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+    throw new Error(`Prea multe cereri. Te rugăm să aștepți ${waitTime} secunde înainte să încerci din nou.`);
+  }
+  
+  console.log(`[ACTION] Starting final prompt generation. Rate limit: ${rateLimitResult.remaining} requests remaining.`);
+  
   try {
     let finalAnalysis = params.initialAnalysis;
     let textToUse = params.deepCrawledText || '';
 
-    // Dacă avem conținut din deep crawl, re-analizăm pentru o acuratețe mai mare
+    // Optimizăm textul pentru a reduce consumul de token-uri
     if (params.deepCrawledText) {
-      console.log('[ACTION] Re-analyzing with deep-crawled text for higher accuracy.');
-      finalAnalysis = await analyzeWebsiteBasics({ crawledText: params.deepCrawledText });
+      const originalText = params.deepCrawledText;
+      const optimizedText = optimizeTextForAI(originalText);
+      logTextOptimization(originalText, optimizedText);
+      textToUse = optimizedText;
+      
+      console.log('[ACTION] Re-analyzing with optimized deep-crawled text for higher accuracy.');
+      finalAnalysis = await analyzeWebsiteBasics({ crawledText: optimizedText });
     }
 
-    // Construim prompt-ul final
+    // Construim prompt-ul final cu textul optimizat
     const { finalPrompt } = await constructTailoredSystemPrompt({
       formResponses: params.surveyResponses,
       crawledText: textToUse,

@@ -9,6 +9,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { WebsiteAnalysisSchema, type WebsiteAnalysis } from '@/lib/types';
+import { optimizeTextForAI, logTextOptimization } from '@/lib/text-optimizer';
+import { dynamicGenkitManager } from '@/lib/dynamic-genkit';
+import { getAvailableApiKey, recordApiKeyUsage, markApiKeySuspended, markApiKeyLocationIssue } from '@/lib/api-key-manager';
 
 const AnalyzeWebsiteBasicsInputSchema = z.object({
   crawledText: z.string().describe('The crawled text content from the website.'),
@@ -16,14 +19,23 @@ const AnalyzeWebsiteBasicsInputSchema = z.object({
 export type AnalyzeWebsiteBasicsInput = z.infer<typeof AnalyzeWebsiteBasicsInputSchema>;
 
 export async function analyzeWebsiteBasics(input: AnalyzeWebsiteBasicsInput): Promise<WebsiteAnalysis> {
-  return analyzeWebsiteBasicsFlow(input);
+  // Optimizăm textul înainte de analiză pentru a reduce consumul de token-uri
+  const originalText = input.crawledText;
+  const optimizedText = optimizeTextForAI(originalText, {
+    maxCharacters: 300000, // Pentru analiza de bază, 30k este suficient
+    preserveImportantSections: true,
+    removeExtraWhitespace: true,
+  });
+  
+  logTextOptimization(originalText, optimizedText);
+  
+  return analyzeWebsiteBasicsFlow({
+    ...input,
+    crawledText: optimizedText,
+  });
 }
 
-const prompt = ai.definePrompt({
-  name: 'analyzeWebsiteBasicsPrompt',
-  input: { schema: AnalyzeWebsiteBasicsInputSchema },
-  output: { schema: WebsiteAnalysisSchema },
-  prompt: `# Role (Rol)
+const analyzeWebsitePrompt = `# Role (Rol)
 You are an expert business analyst AI, specialized in extracting key business insights from unstructured web content. Your analysis is sharp, concise, and grounded in the provided data.
 
 # Action (Acțiune)
@@ -43,10 +55,9 @@ You will be given a block of text extracted from a website. Your analysis must b
 5.  **Output Format:** The final output must be a JSON object that strictly adheres to the defined schema.
 
 <content>
-{{{crawledText}}}
+{{WEBSITE_CONTENT}}
 </content>
-`,
-});
+`;
 
 const analyzeWebsiteBasicsFlow = ai.defineFlow(
   {
@@ -70,20 +81,66 @@ const analyzeWebsiteBasicsFlow = ai.defineFlow(
 
     while (retries > 0) {
       try {
-        const { output } = await prompt({ crawledText: input.crawledText });
-        if (output) {
-          // La succes, returnăm direct rezultatul
-          return output;
+        console.log(`[ANALYZE_WEBSITE] Attempting analysis, retries left: ${retries}`);
+        
+        const promptWithContent = analyzeWebsitePrompt.replace('{{WEBSITE_CONTENT}}', input.crawledText);
+        
+        const result = await dynamicGenkitManager.generateWithTracking(
+          promptWithContent,
+          {},
+          { trackUsage: true }
+        );
+        
+        if (result?.text) {
+          // Încearcă să parseze rezultatul JSON
+          try {
+            const parsedOutput = JSON.parse(result.text);
+            console.log(`[ANALYZE_WEBSITE] Analysis completed successfully`);
+            return parsedOutput;
+          } catch (parseError) {
+            console.warn(`[ANALYZE_WEBSITE] Failed to parse JSON output, using raw text`);
+            // Fallback cu structura de bază
+            return {
+              industry: result.text.substring(0, 200),
+              targetAudience: 'Indeterminat',
+              toneOfVoice: 'Indeterminat'
+            };
+          }
         }
-        throw new Error('No output from prompt.');
+        throw new Error('No output from analysis.');
       } catch (error: any) {
-        console.warn(`Website analysis attempt failed: ${error.message}`);
+        console.warn(`[ANALYZE_WEBSITE] Analysis attempt failed: ${error.message}`);
+        
+        // Detectă keys suspendate și le marchează ca inactive
+        if (error.message?.includes('CONSUMER_SUSPENDED') || error.message?.includes('suspended')) {
+          console.error(`[ANALYZE_WEBSITE] Detected suspended API key - system will auto-switch`);
+        } else if (error.message?.includes('User location is not supported') || 
+                   error.message?.includes('location is not supported')) {
+          console.error(`[ANALYZE_WEBSITE] Detected location-restricted API key - system will auto-switch`);
+        }
+        
         retries--;
+        
         if (retries === 0) {
-          console.error(`Failed to analyze after several retries: ${error.message}`);
+          console.error(`[ANALYZE_WEBSITE] Failed to analyze after several retries: ${error.message}`);
+          
+          // Verifică dacă eroarea persistă din cauza lipsei de keys valide
+          if (error.message?.includes('Nu sunt disponibile API keys alternative valide')) {
+            throw new Error('Toate API keys sunt suspendate, restricționate geografic sau indisponibile. Te rugăm să verifici configurația.');
+          } else if (error.message?.includes('User location is not supported') || 
+                     error.message?.includes('location is not supported')) {
+            throw new Error('API key-urile configurate nu sunt disponibile pentru locația ta geografică. Te rugăm să folosești API keys cu acces global.');
+          }
+          
           throw new Error('Failed to analyze website content after multiple retries.');
         }
-        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Exponential backoff cu jitter pentru rate limiting
+        const jitter = Math.random() * 1000;
+        const waitTime = delay + jitter;
+        console.log(`[ANALYZE_WEBSITE] Waiting ${Math.round(waitTime)}ms before retry...`);
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         delay *= 2;
       }
     }

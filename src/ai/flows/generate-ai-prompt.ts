@@ -12,6 +12,9 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { WebsiteAnalysis } from '@/lib/types';
 import { WebsiteAnalysisSchema, QuickSurveyDataSchema } from '@/lib/types';
+import { optimizeTextForAI, logTextOptimization } from '@/lib/text-optimizer';
+import { dynamicGenkitManager } from '@/lib/dynamic-genkit';
+import { getAvailableApiKey, recordApiKeyUsage, markApiKeySuspended, markApiKeyLocationIssue } from '@/lib/api-key-manager';
 
 const ConstructTailoredSystemPromptInputSchema = z.object({
   formResponses: z.record(z.string()).describe('User-provided responses from the dynamic survey form.'),
@@ -27,7 +30,21 @@ const ConstructTailoredSystemPromptOutputSchema = z.object({
 export type ConstructTailoredSystemPromptOutput = z.infer<typeof ConstructTailoredSystemPromptOutputSchema>;
 
 export async function constructTailoredSystemPrompt(input: ConstructTailoredSystemPromptInput): Promise<ConstructTailoredSystemPromptOutput> {
-  return constructTailoredSystemPromptFlow(input);
+  // Optimizăm textul crawlat pentru a reduce consumul de token-uri
+  const optimizedInput = {
+    ...input,
+    crawledText: input.crawledText ? optimizeTextForAI(input.crawledText, {
+      maxCharacters: 400000, // Pentru generarea prompt-ului final, permitem puțin mai mult text
+      preserveImportantSections: true,
+      removeExtraWhitespace: true,
+    }) : '',
+  };
+  
+  if (input.crawledText && input.crawledText !== optimizedInput.crawledText) {
+    logTextOptimization(input.crawledText, optimizedInput.crawledText);
+  }
+  
+  return constructTailoredSystemPromptFlow(optimizedInput);
 }
 
 export const constructTailoredSystemPromptFlow = ai.defineFlow(
@@ -122,25 +139,56 @@ ${formattedDynamicResponses}
 
     let retries = 3;
     let delay = 1000;
+    
     while (retries > 0) {
       try {
-        const { text: finalPrompt } = await ai.generate({
-          prompt: metaPrompt,
-        });
+        console.log(`[GENERATE_AI_PROMPT] Attempting prompt generation, retries left: ${retries}`);
+        
+        const result = await dynamicGenkitManager.generateWithTracking(
+          metaPrompt,
+          {},
+          { trackUsage: true }
+        );
 
+        const finalPrompt = result?.text;
         if (finalPrompt) {
+          console.log(`[GENERATE_AI_PROMPT] Prompt generation successful`);
           return {
             finalPrompt: finalPrompt,
           };
         }
         throw new Error('No output from prompt generation.');
       } catch (error: any) {
-        console.warn(`Prompt generation attempt failed: ${error.message}`);
+        console.warn(`[GENERATE_AI_PROMPT] Attempt failed: ${error.message}`);
+        
+        // Detectă keys suspendate sau cu probleme de locație
+        if (error.message?.includes('CONSUMER_SUSPENDED') || error.message?.includes('suspended')) {
+          console.error(`[GENERATE_AI_PROMPT] Detected suspended API key - system will auto-switch`);
+        } else if (error.message?.includes('User location is not supported') || 
+                   error.message?.includes('location is not supported')) {
+          console.error(`[GENERATE_AI_PROMPT] Detected location-restricted API key - system will auto-switch`);
+        }
+        
         retries--;
+        
         if (retries === 0) {
+          // Verifică dacă eroarea persistă din cauza lipsei de keys valide
+          if (error.message?.includes('Nu sunt disponibile API keys alternative valide')) {
+            throw new Error('Toate API keys sunt suspendate, restricționate geografic sau indisponibile. Te rugăm să verifici configurația.');
+          } else if (error.message?.includes('User location is not supported') || 
+                     error.message?.includes('location is not supported')) {
+            throw new Error('API key-urile configurate nu sunt disponibile pentru locația ta geografică. Te rugăm să folosești API keys cu acces global.');
+          }
+          
           throw new Error(`Failed to generate prompt after several retries: ${error.message}`);
         }
-        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Exponential backoff cu jitter pentru rate limiting
+        const jitter = Math.random() * 1000;
+        const waitTime = delay + jitter;
+        console.log(`[GENERATE_AI_PROMPT] Waiting ${Math.round(waitTime)}ms before retry...`);
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         delay *= 2; // Exponential backoff
       }
     }
