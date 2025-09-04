@@ -48,6 +48,7 @@ export const QuickSurveyDataSchemaContents = z.object({
   messageVolume: z.string().optional(),
   mainObjective: z.string().optional(),
   userAction: z.string().optional(),
+  companySize: z.string().optional(),
 });
 
 export const QuickSurveyDataSchema = QuickSurveyDataSchemaContents.nullable();

@@ -20,6 +20,8 @@ interface QuickScanSurveyProps {
   isAnalysisInProgress: boolean;
 }
 
+type QuickSurveyFormValues = z.infer<typeof QuickSurveyDataSchemaContents>;
+
 const surveyQuestions = [
   {
     id: 'communicationChannels' as const,
@@ -76,12 +78,23 @@ const surveyQuestions = [
       'Să lase date de contact pentru a fi sunați ulterior.',
     ],
   },
+  {
+    id: 'companySize' as const,
+    type: 'radio' as const,
+    label: 'Care este dimensiunea companiei?',
+    options: [
+      '1–9 angajați (microîntreprinderi)',
+      '10–49 angajați (întreprinderi mici)',
+      '50–249 angajați (întreprinderi mijlocii)',
+      '250+ angajați (întreprinderi mari)',
+    ],
+  },
 ];
 
 export function QuickScanSurvey({ onAnswersChange, onComplete, isAnalysisInProgress }: QuickScanSurveyProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
-  const form = useForm<QuickSurveyData>({
+  const form = useForm<QuickSurveyFormValues>({
     resolver: zodResolver(QuickSurveyDataSchemaContents),
     defaultValues: {
       communicationChannels: [],
@@ -90,6 +103,7 @@ export function QuickScanSurvey({ onAnswersChange, onComplete, isAnalysisInProgr
       messageVolume: '',
       mainObjective: '',
       userAction: '',
+      companySize: '',
     },
   });
 
