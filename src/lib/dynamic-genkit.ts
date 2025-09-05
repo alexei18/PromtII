@@ -85,6 +85,12 @@ class DynamicGenkitManager {
         markApiKeyLocationIssue(apiKey, 'API Key restricted for your geographic location');
       }
       
+      // Detectă 503 Service Unavailable și încearcă cu alt key
+      if (error.message?.includes('503') || error.message?.includes('Service Unavailable') || 
+          error.message?.includes('overloaded')) {
+        console.error(`[DYNAMIC_GENKIT] Key ...${apiKey.slice(-4)} encountered 503 Service Unavailable - trying different key`);
+      }
+      
       // Încearcă cu alt key pentru orice eroare care poate fi rezolvată prin schimbarea key-ului
       if (error.message?.includes('Too Many Requests') || 
           error.message?.includes('quota') || 
@@ -92,6 +98,9 @@ class DynamicGenkitManager {
           error.message?.includes('suspended') ||
           error.message?.includes('User location is not supported') ||
           error.message?.includes('location is not supported') ||
+          error.message?.includes('503') ||
+          error.message?.includes('Service Unavailable') ||
+          error.message?.includes('overloaded') ||
           error.message?.includes('403') ||
           error.message?.includes('400')) {
         console.log(`[DYNAMIC_GENKIT] Trying with different API key...`);

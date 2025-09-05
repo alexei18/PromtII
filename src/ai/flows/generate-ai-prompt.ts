@@ -137,11 +137,14 @@ ${formattedDynamicResponses}
 </DetailedClientResponses>`;
 
     try {
-      const result = await dynamicGenkitManager.generateWithTracking(
-        metaPrompt,
-        {},
-        { trackUsage: true }
-      );
+      const { ai } = dynamicGenkitManager.getAIInstance();
+      
+      const result = await ai.generate({
+        prompt: metaPrompt,
+        config: {
+          temperature: 0.3,
+        }
+      });
 
       const finalPrompt = result?.text;
       
