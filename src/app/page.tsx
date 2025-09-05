@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bot, FileText, User, Sparkles, ArrowRight, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Bot, FileText, User, Sparkles, ArrowRight, ChevronLeft, ChevronRight, X, History } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -26,7 +26,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import type { SurveyQuestion, WebsiteAnalysis, PersonaCardData } from '@/lib/types';
 import { WebsiteAnalysisSchema } from '@/lib/types';
+import { savePrompt, getSavedPrompts, isLocalStorageAvailable } from '@/lib/prompt-storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PromptHistory } from '@/components/PromptHistory';
 import { QuickScanSurvey, type QuickSurveyData } from '@/components/QuickScanSurvey';
 import { GamingLoadingScreen } from '@/components/GamingLoadingScreen';
 import SubscriptionPopup from '@/components/SubscriptionPopup';
@@ -76,6 +78,7 @@ export default function Home() {
   const [aiQuestionsGenerated, setAiQuestionsGenerated] = useState(false);
 
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [currentPromptId, setCurrentPromptId] = useState<string | null>(null);
   const router = useRouter();
 
   const urlRef = useRef<string | null>(null);
@@ -97,6 +100,16 @@ export default function Home() {
       setStep('form');
     }
   }, [quickSurveyCompleted, analysisCompleted, aiQuestionsGenerated, flowMode]);
+
+  // Verifică și afișează notificare pentru prompturi salvate la încărcarea aplicației
+  useEffect(() => {
+    if (isLocalStorageAvailable()) {
+      const savedPrompts = getSavedPrompts();
+      if (savedPrompts.length > 0) {
+        console.log(`[STORAGE] Found ${savedPrompts.length} saved prompts`);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (step === 'form' && urlRef.current && flowMode === 'url') {
@@ -201,6 +214,36 @@ export default function Home() {
 
       setFinalPrompt(result.finalPrompt);
       setPersonaCardData(result.personaCard);
+      
+      // Salvează promptul în localStorage
+      if (isLocalStorageAvailable()) {
+        try {
+          const promptId = savePrompt(
+            result.finalPrompt,
+            result.personaCard,
+            {
+              url: urlRef.current || undefined,
+              industry: initialAnalysis?.industry,
+              targetAudience: initialAnalysis?.targetAudience,
+              toneOfVoice: initialAnalysis?.toneOfVoice,
+            }
+          );
+          setCurrentPromptId(promptId);
+          
+          toast({
+            title: "Prompt salvat",
+            description: "Promptul a fost salvat automat în browser.",
+          });
+        } catch (error) {
+          console.error('[STORAGE] Failed to save prompt:', error);
+          toast({
+            variant: "destructive",
+            title: "Eroare la salvare",
+            description: "Nu s-a putut salva promptul, dar îl poți copia manual.",
+          });
+        }
+      }
+      
       setStep('result');
     } catch (err: any) {
       setError(`A apărut o eroare la generarea prompt-ului final: ${err.message}`);
@@ -225,6 +268,7 @@ export default function Home() {
     setQuickSurveyCompleted(false);
     setAnalysisCompleted(false);
     setAiQuestionsGenerated(false);
+    setCurrentPromptId(null);
     urlRef.current = null;
     initialCrawledTextRef.current = null;
     deepCrawlResultRef.current = null;
@@ -255,6 +299,30 @@ export default function Home() {
 
   const handlePromptRegenerated = (newPrompt: string) => {
     setFinalPrompt(newPrompt);
+    
+    // Salvează promptul regenerat în localStorage
+    if (isLocalStorageAvailable()) {
+      try {
+        const promptId = savePrompt(
+          newPrompt,
+          personaCardData,
+          {
+            url: urlRef.current || undefined,
+            industry: initialAnalysis?.industry,
+            targetAudience: initialAnalysis?.targetAudience,
+            toneOfVoice: initialAnalysis?.toneOfVoice,
+          }
+        );
+        setCurrentPromptId(promptId);
+        
+        toast({
+          title: "Prompt regenerat și salvat",
+          description: "Noul prompt a fost salvat automat în browser.",
+        });
+      } catch (error) {
+        console.error('[STORAGE] Failed to save regenerated prompt:', error);
+      }
+    }
   };
 
   const totalOnboardingSteps = 1 + questions.length;
@@ -369,6 +437,20 @@ export default function Home() {
                   <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Card de Personalitate AI</DialogTitle></DialogHeader><PersonaCard persona={personaCardData} /></DialogContent>
                 </Dialog>
               )}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <History className="mr-2 h-4 w-4" />
+                    Istoric Prompturi
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh]">
+                  <DialogHeader>
+                    <DialogTitle>Istoric Prompturi Salvate</DialogTitle>
+                  </DialogHeader>
+                  <PromptHistory onPromptSelect={(prompt) => setFinalPrompt(prompt)} />
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         )

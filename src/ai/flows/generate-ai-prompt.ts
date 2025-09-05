@@ -47,13 +47,13 @@ export async function constructTailoredSystemPrompt(input: ConstructTailoredSyst
   return constructTailoredSystemPromptFlow(optimizedInput);
 }
 
-export const constructTailoredSystemPromptFlow = ai.defineFlow(
+const constructTailoredSystemPromptFlow = ai.defineFlow(
   {
     name: 'constructTailoredSystemPromptFlow',
     inputSchema: ConstructTailoredSystemPromptInputSchema,
     outputSchema: ConstructTailoredSystemPromptOutputSchema,
   },
-  async input => {
+  async (input) => {
     const {
       formResponses,
       crawledText,
@@ -61,14 +61,15 @@ export const constructTailoredSystemPromptFlow = ai.defineFlow(
     } = input;
 
     const formattedDynamicResponses = Object.entries(formResponses)
-      .map(([question, answer]) => `- Întrebare: "${question}"\n  - Răspuns: "${answer}"`) // Corrected escaping for newline and quotes within the string literal
+      .map(([question, answer]) => `- Întrebare: "${question}"
+  - Răspuns: "${answer}"`)
       .join('\n');
 
     const formattedQuickSurveyResponses = quickSurveyResponses 
       ? Object.entries(quickSurveyResponses)
           .map(([key, value]) => {
             if (!value || (Array.isArray(value) && value.length === 0)) return null;
-            const question = key; // In the future, map keys to full questions if needed
+            const question = key;
             const answer = Array.isArray(value) ? value.join(', ') : value;
             return `- ${question}: ${answer}`;
           })
@@ -135,65 +136,35 @@ ${crawledText || 'N/A'}
 ${formattedDynamicResponses}
 </DetailedClientResponses>`;
 
+    try {
+      const result = await dynamicGenkitManager.generateWithTracking(
+        metaPrompt,
+        {},
+        { trackUsage: true }
+      );
 
-
-    let retries = 3;
-    let delay = 1000;
-    
-    while (retries > 0) {
-      try {
-        console.log(`[GENERATE_AI_PROMPT] Attempting prompt generation, retries left: ${retries}`);
-        
-        const result = await dynamicGenkitManager.generateWithTracking(
-          metaPrompt,
-          {},
-          { trackUsage: true }
-        );
-
-        const finalPrompt = result?.text;
-        if (finalPrompt) {
-          console.log(`[GENERATE_AI_PROMPT] Prompt generation successful`);
-          return {
-            finalPrompt: finalPrompt,
-          };
-        }
-        throw new Error('No output from prompt generation.');
-      } catch (error: any) {
-        console.warn(`[GENERATE_AI_PROMPT] Attempt failed: ${error.message}`);
-        
-        // Detectă keys suspendate sau cu probleme de locație
-        if (error.message?.includes('CONSUMER_SUSPENDED') || error.message?.includes('suspended')) {
-          console.error(`[GENERATE_AI_PROMPT] Detected suspended API key - system will auto-switch`);
-        } else if (error.message?.includes('User location is not supported') || 
-                   error.message?.includes('location is not supported')) {
-          console.error(`[GENERATE_AI_PROMPT] Detected location-restricted API key - system will auto-switch`);
-        }
-        
-        retries--;
-        
-        if (retries === 0) {
-          // Verifică dacă eroarea persistă din cauza lipsei de keys valide
-          if (error.message?.includes('Nu sunt disponibile API keys alternative valide')) {
-            throw new Error('Toate API keys sunt suspendate, restricționate geografic sau indisponibile. Te rugăm să verifici configurația.');
-          } else if (error.message?.includes('User location is not supported') || 
-                     error.message?.includes('location is not supported')) {
-            throw new Error('API key-urile configurate nu sunt disponibile pentru locația ta geografică. Te rugăm să folosești API keys cu acces global.');
-          }
-          
-          throw new Error(`Failed to generate prompt after several retries: ${error.message}`);
-        }
-        
-        // Exponential backoff cu jitter pentru rate limiting
-        const jitter = Math.random() * 1000;
-        const waitTime = delay + jitter;
-        console.log(`[GENERATE_AI_PROMPT] Waiting ${Math.round(waitTime)}ms before retry...`);
-        
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        delay *= 2; // Exponential backoff
+      const finalPrompt = result?.text;
+      
+      if (!finalPrompt || typeof finalPrompt !== 'string') {
+        console.error('[GENERATE_AI_PROMPT] Invalid response format:', result);
+        throw new Error('Nu s-a putut genera promptul. Răspunsul AI-ului nu este valid.');
       }
+
+      return {
+        finalPrompt,
+      };
+    } catch (error: any) {
+      console.error('[GENERATE_AI_PROMPT] Error:', error.message);
+      
+      if (error.message?.includes('location') || error.message?.includes('region')) {
+        throw new Error('API key are restricții geografice. Te rugăm să verifici configurația.');
+      }
+      
+      if (error.message?.includes('quota') || error.message?.includes('limit')) {
+        throw new Error('API key a depășit limita de utilizare și a fost suspendat temporar.');
+      }
+      
+      throw new Error(`Eroare la generarea promptului: ${error.message}`);
     }
-    // This part should not be reachable if retries are exhausted, as the error will be thrown.
-    // But to satisfy TypeScript's need for a return path, we'll throw an error here too.
-    throw new Error('Failed to generate prompt and exited retry loop unexpectedly.');
   }
 );
