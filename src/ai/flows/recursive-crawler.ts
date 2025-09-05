@@ -7,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const RecursiveCrawlerInputSchema = z.object({
     url: z.string().describe('The URL to start crawling from.'),
@@ -58,7 +58,7 @@ const recursiveCrawlerFlow = ai.defineFlow(
         inputSchema: RecursiveCrawlerInputSchema,
         outputSchema: RecursiveCrawlerOutputSchema,
     },
-    async input => {
+    async (input: RecursiveCrawlerInput) => {
         const { url, crawlDepth, maxUrls } = input;
         const crawledUrls = new Set<string>();
         const discoveredUrls = new Set<string>();

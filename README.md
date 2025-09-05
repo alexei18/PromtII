@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Technology: Next.js](https://img.shields.io/badge/Next.js-15.x-black?logo=next.js)](https://nextjs.org/)
-[![AI Framework: Genkit](https://img.shields.io/badge/Genkit-Google-orange?logo=google-cloud)](https://firebase.google.com/docs/genkit)
+[![AI Model: OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-green?logo=openai)](https://openai.com/)
 [![Styling: Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-blue?logo=tailwind-css)](https://tailwindcss.com/)
 
 ## 1. Prezentare Generală
@@ -79,7 +79,7 @@ Pentru a rula proiectul în mediul de dezvoltare local, urmați pașii de mai jo
 ### Cerințe Preliminare
 *   [Node.js](https://nodejs.org/en/) (v18 sau mai recent)
 *   [npm](https://www.npmjs.com/) sau un manager de pachete echivalent
-*   **API Keys Google Gemini** - Vezi secțiunea de configurare de mai jos
+*   **API Keys OpenAI** - Vezi secțiunea de configurare de mai jos
 
 ### Pași de Instalare
 
@@ -134,25 +134,25 @@ Pentru a rula proiectul în mediul de dezvoltare local, urmați pașii de mai jo
 
 ### Obținerea API Keys
 
-1. **Accesați Google AI Studio**: https://aistudio.google.com/app/apikey
+1. **Accesați OpenAI Platform**: https://platform.openai.com/api-keys
 2. **Creați un nou API key** sau folosiți unul existent
 3. **Repetați procesul** pentru a obține 2-5 API keys (recomandat pentru load balancing)
 
 ### ⚠️ Probleme Comune și Soluții
 
-#### Eroare: "CONSUMER_SUSPENDED"
-- **Cauza**: API key-ul a fost suspendat de Google
-- **Soluția**: Înlocuiți API key-ul suspendat cu unul nou în `.env`
+#### Eroare: "Invalid API key"
+- **Cauza**: API key-ul a fost revocat sau este greșit
+- **Soluția**: Înlocuiți API key-ul invalid cu unul nou în `.env`
 
-#### Eroare: "User location is not supported"
-- **Cauza**: API key-ul nu are acces din locația ta geografică
+#### Eroare: "Insufficient quota" sau "Rate limit exceeded"
+- **Cauza**: API key-ul nu are suficient credit sau a depășit limita
 - **Soluția**: 
-  - Creați API keys dintr-o regiune suportată (SUA, EU de vest)
-  - Folosiți un VPN pentru a crea keys dintr-o locație suportată
-  - Contactați Google Support pentru access regional
+  - Adăugați credit în contul OpenAI
+  - Folosiți mai multe API keys pentru load balancing
+  - Contactați OpenAI Support pentru mărirea limitelor
 
 #### Eroare: "Too Many Requests"
-- **Cauza**: Ați depășit quota API
+- **Cauza**: Ați depășit rata de cereri per minut
 - **Soluția**: Sistemul va comuta automat la alt API key disponibil
 
 ### Verificarea Funcționalității
@@ -160,7 +160,7 @@ Pentru a rula proiectul în mediul de dezvoltare local, urmați pașii de mai jo
 Sistemul afișează în console informații despre:
 - Numărul de API keys detectate și activate
 - Distribuirea load-ului între keys
-- Detectarea automată a problemelor (suspendare, restricții geografice)
+- Detectarea automată a problemelor (rate limiting, credit insuficient)
 
 ---
 

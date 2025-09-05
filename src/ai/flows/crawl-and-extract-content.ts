@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { recursiveCrawler } from './recursive-crawler';
 import { extractPageContent } from './extract-page-content';
 
@@ -33,7 +33,8 @@ export const crawlAndExtractContentFlow = ai.defineFlow(
         inputSchema: CrawlAndExtractInputSchema,
         outputSchema: CrawlAndExtractOutputSchema,
     },
-    async ({ url, maxPages, crawlDepth }) => {
+    async (input: CrawlAndExtractInput) => {
+        const { url, maxPages, crawlDepth } = input;
         console.log(`Starting crawl for ${url} with depth ${crawlDepth} and max pages ${maxPages}`);
 
         // Pass maxPages to the new maxUrls parameter to stop the crawler early.

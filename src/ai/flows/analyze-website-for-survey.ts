@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { quickScanFlow } from './quick-scan'; // MODIFICAT: Folosim noul flux rapid
 import { analyzeWebsiteBasics } from './analyze-website-basics';
 import { generateTailoredSurveyQuestions } from './generate-survey-questions';
@@ -34,7 +34,8 @@ const analyzeWebsiteForSurveyFlow = ai.defineFlow(
         inputSchema: AnalyzeWebsiteForSurveyInputSchema,
         outputSchema: AnalyzeWebsiteForSurveyOutputSchema,
     },
-    async ({ url }) => {
+    async (input: AnalyzeWebsiteForSurveyInput) => {
+        const { url } = input;
         console.log(`[Phase 1] Starting quick scan and analysis for ${url}`);
 
         // Step 1: Perform an extremely fast, shallow scan of the homepage and its links

@@ -7,11 +7,10 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { WebsiteAnalysisSchema, type WebsiteAnalysis } from '@/lib/types';
 import { optimizeTextForAI, logTextOptimization } from '@/lib/text-optimizer';
-import { dynamicGenkitManager } from '@/lib/dynamic-genkit';
-import { getAvailableApiKey, recordApiKeyUsage, markApiKeySuspended, markApiKeyLocationIssue } from '@/lib/api-key-manager';
+import { dynamicOpenAIManager } from '@/lib/dynamic-openai';
 
 const AnalyzeWebsiteBasicsInputSchema = z.object({
   crawledText: z.string().describe('The crawled text content from the website.'),
@@ -26,9 +25,9 @@ export async function analyzeWebsiteBasics(input: AnalyzeWebsiteBasicsInput): Pr
     preserveImportantSections: true,
     removeExtraWhitespace: true,
   });
-  
+
   logTextOptimization(originalText, optimizedText);
-  
+
   return analyzeWebsiteBasicsFlow({
     ...input,
     crawledText: optimizedText,
@@ -52,12 +51,13 @@ You will be given a block of text extracted from a website. Your analysis must b
 2.  **Concise and Specific:** Provide a concise and specific answer for each of the three attributes.
 3.  **Handle Uncertainty:** If you cannot confidently determine one of the attributes from the text, you MUST return the string "Indeterminat" for that specific field. Do not guess.
 4.  **Romanian Language:** The entire output, including your reasoning and the final answer, MUST be in Romanian.
-5.  **Output Format:** The final output must be a JSON object that strictly adheres to the defined schema.
+5.  **Output Format:** The final output must be a JSON object that strictly adheres to the defined schema. CRITICAL: Your response MUST contain ONLY a valid JSON object. Do not include any explanatory text, markdown formatting, or anything else. The response should start with { and end with }.
+
+**REMEMBER:** Respond with ONLY the JSON object, no additional text or formatting.
 
 <content>
 {{WEBSITE_CONTENT}}
-</content>
-`;
+</content>`;
 
 const analyzeWebsiteBasicsFlow = ai.defineFlow(
   {
@@ -65,7 +65,7 @@ const analyzeWebsiteBasicsFlow = ai.defineFlow(
     inputSchema: AnalyzeWebsiteBasicsInputSchema,
     outputSchema: WebsiteAnalysisSchema,
   },
-  async (input) => {
+  async (input: AnalyzeWebsiteBasicsInput) => {
     // Dacă textul primit este gol, aruncăm o eroare clară
     if (!input.crawledText || !input.crawledText.trim()) {
       throw new Error('analyzeWebsiteBasicsFlow received empty crawledText.');
@@ -82,26 +82,46 @@ const analyzeWebsiteBasicsFlow = ai.defineFlow(
     while (retries > 0) {
       try {
         console.log(`[ANALYZE_WEBSITE] Attempting analysis, retries left: ${retries}`);
-        
+
         const promptWithContent = analyzeWebsitePrompt.replace('{{WEBSITE_CONTENT}}', input.crawledText);
-        
-        const result = await dynamicGenkitManager.generateWithTracking(
+
+        const result = await dynamicOpenAIManager.generateWithTracking(
           promptWithContent,
-          {},
-          { trackUsage: true }
+          {
+            temperature: 0.3,
+            maxTokens: 1000,
+          }
         );
-        
-        if (result?.text) {
+
+        if (result?.content) {
           // Încearcă să parseze rezultatul JSON
           try {
-            const parsedOutput = JSON.parse(result.text);
+            // Try to extract JSON from the response
+            let jsonText = result.content.trim();
+
+            // Remove markdown code blocks if present
+            jsonText = jsonText.replace(/```json\s*/, '').replace(/```\s*$/, '');
+
+            // Look for JSON object boundaries
+            const jsonStart = jsonText.indexOf('{');
+            const jsonEnd = jsonText.lastIndexOf('}');
+
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+              jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+            }
+
+            console.log('[ANALYZE_WEBSITE] Attempting to parse JSON:', jsonText.substring(0, 200) + '...');
+
+            const parsedOutput = JSON.parse(jsonText);
             console.log(`[ANALYZE_WEBSITE] Analysis completed successfully`);
             return parsedOutput;
           } catch (parseError) {
             console.warn(`[ANALYZE_WEBSITE] Failed to parse JSON output, using raw text`);
+            console.error('[ANALYZE_WEBSITE] Parse error:', parseError);
+            console.error('[ANALYZE_WEBSITE] Raw response:', result.content);
             // Fallback cu structura de bază
             return {
-              industry: result.text.substring(0, 200),
+              industry: result.content.substring(0, 200),
               targetAudience: 'Indeterminat',
               toneOfVoice: 'Indeterminat'
             };
@@ -110,36 +130,36 @@ const analyzeWebsiteBasicsFlow = ai.defineFlow(
         throw new Error('No output from analysis.');
       } catch (error: any) {
         console.warn(`[ANALYZE_WEBSITE] Analysis attempt failed: ${error.message}`);
-        
+
         // Detectă keys suspendate și le marchează ca inactive
         if (error.message?.includes('CONSUMER_SUSPENDED') || error.message?.includes('suspended')) {
           console.error(`[ANALYZE_WEBSITE] Detected suspended API key - system will auto-switch`);
-        } else if (error.message?.includes('User location is not supported') || 
-                   error.message?.includes('location is not supported')) {
+        } else if (error.message?.includes('User location is not supported') ||
+          error.message?.includes('location is not supported')) {
           console.error(`[ANALYZE_WEBSITE] Detected location-restricted API key - system will auto-switch`);
         }
-        
+
         retries--;
-        
+
         if (retries === 0) {
           console.error(`[ANALYZE_WEBSITE] Failed to analyze after several retries: ${error.message}`);
-          
+
           // Verifică dacă eroarea persistă din cauza lipsei de keys valide
           if (error.message?.includes('Nu sunt disponibile API keys alternative valide')) {
             throw new Error('Toate API keys sunt suspendate, restricționate geografic sau indisponibile. Te rugăm să verifici configurația.');
-          } else if (error.message?.includes('User location is not supported') || 
-                     error.message?.includes('location is not supported')) {
+          } else if (error.message?.includes('User location is not supported') ||
+            error.message?.includes('location is not supported')) {
             throw new Error('API key-urile configurate nu sunt disponibile pentru locația ta geografică. Te rugăm să folosești API keys cu acces global.');
           }
-          
+
           throw new Error('Failed to analyze website content after multiple retries.');
         }
-        
+
         // Exponential backoff cu jitter pentru rate limiting
         const jitter = Math.random() * 1000;
         const waitTime = delay + jitter;
         console.log(`[ANALYZE_WEBSITE] Waiting ${Math.round(waitTime)}ms before retry...`);
-        
+
         await new Promise(resolve => setTimeout(resolve, waitTime));
         delay *= 2;
       }

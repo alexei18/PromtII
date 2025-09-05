@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const ExtractPageContentInputSchema = z.object({
     url: z.string().describe('The URL to extract content from.'),
@@ -174,7 +174,8 @@ const extractPageContentFlow = ai.defineFlow(
         inputSchema: ExtractPageContentInputSchema,
         outputSchema: ExtractPageContentOutputSchema,
     },
-    async ({ url }) => {
+    async (input: ExtractPageContentInput) => {
+        const { url } = input;
         let response;
         let html;
         try {

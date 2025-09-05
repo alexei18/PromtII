@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { extractPageContent, type ExtractPageContentOutput } from './extract-page-content';
 
 const QuickScanInputSchema = z.object({
@@ -30,7 +30,8 @@ export const quickScanFlow = ai.defineFlow(
         inputSchema: QuickScanInputSchema,
         outputSchema: QuickScanOutputSchema,
     },
-    async ({ url }) => {
+    async (input: QuickScanInput) => {
+        const { url } = input;
         console.log(`[Quick Scan] Starting for entry URL: ${url}`);
         const MAX_PAGES = 5;
         const allPageContents: ExtractPageContentOutput[] = [];

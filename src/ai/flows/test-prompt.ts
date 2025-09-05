@@ -9,8 +9,9 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { ChatMessageSchema } from '@/lib/types';
+import { dynamicOpenAIManager } from '@/lib/dynamic-openai';
 
 const TestPromptInputSchema = z.object({
   systemPrompt: z.string().describe('The system prompt to test.'),
@@ -34,13 +35,33 @@ const testPromptFlow = ai.defineFlow(
     inputSchema: TestPromptInputSchema,
     outputSchema: TestPromptOutputSchema,
   },
-  async ({ systemPrompt, userMessage, history }) => {
-    const response = await ai.generate({
-      system: systemPrompt,
-      prompt: userMessage,
-    });
-    
-    return { response: response.text };
+  async (input: TestPromptInput) => {
+    const { systemPrompt, userMessage, history } = input;
+
+    // Construim un prompt care include sistemul și mesajul utilizatorului
+    const conversationHistory = history.length > 0
+      ? history.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')
+      : '';
+
+    const fullPrompt = `You are an AI assistant with the following instructions:
+
+${systemPrompt}
+
+${conversationHistory ? `Conversation history:\n${conversationHistory}\n` : ''}User: ${userMessage}
+
+Please respond as the AI assistant based on the instructions above:`;
+
+    try {
+      const result = await dynamicOpenAIManager.generateWithTracking(fullPrompt, {
+        temperature: 0.7,
+        maxTokens: 2000,
+      });
+
+      return { response: result.content };
+    } catch (error: any) {
+      console.error('[TEST_PROMPT] Error:', error.message);
+      throw new Error(`Failed to test prompt: ${error.message}`);
+    }
   }
 );
 

@@ -1,9 +1,9 @@
 import { ai } from '@/ai/genkit';
-import { defineFlow } from '@genkit-ai/flow';
 import { z } from 'zod';
 import * as mammoth from 'mammoth';
 // import * as pdfParse from 'pdf-parse'; // Removed static import
 import * as xlsx from 'xlsx';
+import { dynamicOpenAIManager } from '@/lib/dynamic-openai';
 
 // Define the input schema for the flow
 const FileInputSchema = z.object({
@@ -87,7 +87,7 @@ Follow this step-by-step process:
 `;
 
 // Define the Genkit flow
-export const regeneratePromptWithKnowledgeFlow = defineFlow(
+export const regeneratePromptWithKnowledgeFlow = ai.defineFlow(
   {
     name: 'regeneratePromptWithKnowledgeFlow',
     inputSchema: RegenerationInputSchema,
@@ -116,17 +116,19 @@ export const regeneratePromptWithKnowledgeFlow = defineFlow(
       .replace('{{currentPrompt}}', currentPrompt)
       .replace('{{knowledgeBaseText}}', knowledgeBaseText);
 
-    const response = await ai.generate({
-      prompt: finalPrompt,
-      config: {
-        temperature: 0.3, // Lower temperature for more predictable, structured output
-      },
-    });
+    try {
+      const result = await dynamicOpenAIManager.generateWithTracking(finalPrompt, {
+        temperature: 0.3,
+        maxTokens: 4000,
+      });
 
-    const newPrompt = response.text;
-    console.log('[Flow] Successfully generated new prompt.');
+      const newPrompt = result.content;
+      console.log('[Flow] Successfully generated new prompt.');
 
-    return newPrompt;
+      return newPrompt;
+    } catch (error: any) {
+      console.error('[Flow] Error generating new prompt:', error.message);
+      throw new Error(`Failed to generate updated prompt: ${error.message}`);
+    }
   }
 );
- 

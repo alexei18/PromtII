@@ -9,12 +9,11 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import type { WebsiteAnalysis } from '@/lib/types';
 import { WebsiteAnalysisSchema, QuickSurveyDataSchema } from '@/lib/types';
 import { optimizeTextForAI, logTextOptimization } from '@/lib/text-optimizer';
-import { dynamicGenkitManager } from '@/lib/dynamic-genkit';
-import { getAvailableApiKey, recordApiKeyUsage, markApiKeySuspended, markApiKeyLocationIssue } from '@/lib/api-key-manager';
+import { dynamicOpenAIManager } from '@/lib/dynamic-openai';
 
 const ConstructTailoredSystemPromptInputSchema = z.object({
   formResponses: z.record(z.string()).describe('User-provided responses from the dynamic survey form.'),
@@ -39,11 +38,11 @@ export async function constructTailoredSystemPrompt(input: ConstructTailoredSyst
       removeExtraWhitespace: true,
     }) : '',
   };
-  
+
   if (input.crawledText && input.crawledText !== optimizedInput.crawledText) {
     logTextOptimization(input.crawledText, optimizedInput.crawledText);
   }
-  
+
   return constructTailoredSystemPromptFlow(optimizedInput);
 }
 
@@ -53,7 +52,7 @@ const constructTailoredSystemPromptFlow = ai.defineFlow(
     inputSchema: ConstructTailoredSystemPromptInputSchema,
     outputSchema: ConstructTailoredSystemPromptOutputSchema,
   },
-  async (input) => {
+  async (input: ConstructTailoredSystemPromptInput) => {
     const {
       formResponses,
       crawledText,
@@ -65,16 +64,16 @@ const constructTailoredSystemPromptFlow = ai.defineFlow(
   - Răspuns: "${answer}"`)
       .join('\n');
 
-    const formattedQuickSurveyResponses = quickSurveyResponses 
+    const formattedQuickSurveyResponses = quickSurveyResponses
       ? Object.entries(quickSurveyResponses)
-          .map(([key, value]) => {
-            if (!value || (Array.isArray(value) && value.length === 0)) return null;
-            const question = key;
-            const answer = Array.isArray(value) ? value.join(', ') : value;
-            return `- ${question}: ${answer}`;
-          })
-          .filter(Boolean)
-          .join('\n')
+        .map(([key, value]) => {
+          if (!value || (Array.isArray(value) && value.length === 0)) return null;
+          const question = key;
+          const answer = Array.isArray(value) ? value.join(', ') : value;
+          return `- ${question}: ${answer}`;
+        })
+        .filter(Boolean)
+        .join('\n')
       : 'N/A';
 
     const metaPrompt = `# CRISPE Framework: System Prompt Generation
@@ -137,17 +136,13 @@ ${formattedDynamicResponses}
 </DetailedClientResponses>`;
 
     try {
-      const { ai } = dynamicGenkitManager.getAIInstance();
-      
-      const result = await ai.generate({
-        prompt: metaPrompt,
-        config: {
-          temperature: 0.3,
-        }
+      const result = await dynamicOpenAIManager.generateWithTracking(metaPrompt, {
+        temperature: 0.3,
+        maxTokens: 4000,
       });
 
-      const finalPrompt = result?.text;
-      
+      const finalPrompt = result.content;
+
       if (!finalPrompt || typeof finalPrompt !== 'string') {
         console.error('[GENERATE_AI_PROMPT] Invalid response format:', result);
         throw new Error('Nu s-a putut genera promptul. Răspunsul AI-ului nu este valid.');
@@ -158,15 +153,15 @@ ${formattedDynamicResponses}
       };
     } catch (error: any) {
       console.error('[GENERATE_AI_PROMPT] Error:', error.message);
-      
-      if (error.message?.includes('location') || error.message?.includes('region')) {
+
+      if (error.message?.includes('location') || error.message?.includes('region') || error.message?.includes('geographic')) {
         throw new Error('API key are restricții geografice. Te rugăm să verifici configurația.');
       }
-      
-      if (error.message?.includes('quota') || error.message?.includes('limit')) {
+
+      if (error.message?.includes('quota') || error.message?.includes('limit') || error.message?.includes('429')) {
         throw new Error('API key a depășit limita de utilizare și a fost suspendat temporar.');
       }
-      
+
       throw new Error(`Eroare la generarea promptului: ${error.message}`);
     }
   }
