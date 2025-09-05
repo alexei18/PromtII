@@ -118,7 +118,7 @@ The JSON must strictly adhere to this schema:
 ### Icon List (Exclusive)
 You MUST use icons only from this list: 'briefcase', 'users', 'megaphone', 'target', 'zap', 'settings', 'message-circle', 'dollar-sign', 'calendar', 'award', 'shield', 'lightbulb', 'link', 'workflow', 'pie-chart', 'compass', 'book-open', 'feather', 'pen-tool', 'server', 'database', 'more-horizontal', 'x-circle'.
 
-**REMEMBER:** Respond with ONLY the JSON object, no additional text or formatting.
+**CRITICAL:** Your response MUST be ONLY a valid JSON object starting with { and ending with }. No explanations, no markdown, no additional text. ONLY JSON.
 
 <analysis>
 ${JSON.stringify(input.analysis, null, 2)}
@@ -130,7 +130,7 @@ ${input.crawledText}
 
         const result = await dynamicOpenAIManager.generateWithTracking(metaPrompt, {
           temperature: 0.3,
-          maxTokens: 3000,
+          maxTokens: 4500, // Crescut de la 3000 pentru răspunsuri mai complexe
         });
 
         const responseText = result.content.trim();
@@ -141,6 +141,7 @@ ${input.crawledText}
 
           // Remove markdown code blocks if present
           jsonText = jsonText.replace(/```json\s*/, '').replace(/```\s*$/, '');
+          jsonText = jsonText.replace(/```\s*$/, '');
 
           // Look for JSON object boundaries
           const jsonStart = jsonText.indexOf('{');
@@ -148,6 +149,12 @@ ${input.crawledText}
 
           if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
             jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+          }
+
+          // If we still don't have proper JSON, log the issue and fail
+          if (!jsonText.trim().startsWith('{')) {
+            console.error('[GENERATE_SURVEY_QUESTIONS] Response does not start with JSON object:', responseText.substring(0, 500));
+            throw new Error('AI response does not contain valid JSON format');
           }
 
           console.log('[GENERATE_SURVEY_QUESTIONS] Attempting to parse JSON:', jsonText.substring(0, 200) + '...');

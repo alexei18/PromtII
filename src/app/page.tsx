@@ -29,7 +29,8 @@ import { WebsiteAnalysisSchema } from '@/lib/types';
 import { savePrompt, getSavedPrompts, isLocalStorageAvailable } from '@/lib/prompt-storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PromptHistory } from '@/components/PromptHistory';
-import { QuickScanSurvey, type QuickSurveyData } from '@/components/QuickScanSurvey';
+import { QuickScanSurvey } from '@/components/QuickScanSurvey';
+import type { QuickSurveyData } from '@/lib/types';
 import { GamingLoadingScreen } from '@/components/GamingLoadingScreen';
 import SubscriptionPopup from '@/components/SubscriptionPopup';
 import { Progress } from '@/components/ui/progress';
@@ -72,7 +73,7 @@ export default function Home() {
   const [initialAnalysis, setInitialAnalysis] = useState<WebsiteAnalysis | null>(null);
   const [quickSurveyAnswers, setQuickSurveyAnswers] = useState<QuickSurveyData | null>(null);
   const [formStep, setFormStep] = useState(0);
-  
+
   const [quickSurveyCompleted, setQuickSurveyCompleted] = useState(false);
   const [analysisCompleted, setAnalysisCompleted] = useState(false);
   const [aiQuestionsGenerated, setAiQuestionsGenerated] = useState(false);
@@ -214,7 +215,7 @@ export default function Home() {
 
       setFinalPrompt(result.finalPrompt);
       setPersonaCardData(result.personaCard);
-      
+
       // Salvează promptul în localStorage
       if (isLocalStorageAvailable()) {
         try {
@@ -229,7 +230,7 @@ export default function Home() {
             }
           );
           setCurrentPromptId(promptId);
-          
+
           toast({
             title: "Prompt salvat",
             description: "Promptul a fost salvat automat în browser.",
@@ -243,7 +244,7 @@ export default function Home() {
           });
         }
       }
-      
+
       setStep('result');
     } catch (err: any) {
       setError(`A apărut o eroare la generarea prompt-ului final: ${err.message}`);
@@ -288,7 +289,7 @@ export default function Home() {
   const handleClosePopup = () => {
     router.push('/dashboard');
   };
-  
+
   const handleBack = () => {
     if (step === 'manual-input') setStep('url');
     if (step === 'form') {
@@ -299,7 +300,7 @@ export default function Home() {
 
   const handlePromptRegenerated = (newPrompt: string) => {
     setFinalPrompt(newPrompt);
-    
+
     // Salvează promptul regenerat în localStorage
     if (isLocalStorageAvailable()) {
       try {
@@ -314,7 +315,7 @@ export default function Home() {
           }
         );
         setCurrentPromptId(promptId);
-        
+
         toast({
           title: "Prompt regenerat și salvat",
           description: "Noul prompt a fost salvat automat în browser.",
@@ -373,7 +374,7 @@ export default function Home() {
                   handleUrlSubmit(formData);
                 }}>
                   <CardContent className="p-0">
-                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Introduceți URL-ul site-ului</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Introduceți URL-ul site-ului</h3>
                     <div className="grid w-full items-center gap-2">
                       <Input id="url" name="url" type="url" placeholder="https://exemplu.ro" required className="text-base" />
                       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -390,7 +391,7 @@ export default function Home() {
                 <Form {...manualForm}>
                   <form onSubmit={manualForm.handleSubmit(handleManualAnalysisSubmit)}>
                     <CardContent className="p-0 space-y-4">
-                       <h3 className="text-lg font-semibold text-gray-800 mb-4">Descrieți Afacerea Dvs.</h3>
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Descrieți Afacerea Dvs.</h3>
                       <FormField control={manualForm.control} name="industry" render={({ field }) => (
                         <FormItem><Label>Industrie</Label><FormControl><Input placeholder="Ex: Restaurant cu specific italian" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
@@ -402,19 +403,19 @@ export default function Home() {
                       )} />
                     </CardContent>
                     <CardFooter className="p-0 mt-8 flex items-center justify-between">
-                       <Button type="button" variant="outline" onClick={handleBack}><ChevronLeft className="mr-2 h-4 w-4" /> Înapoi</Button>
-                       <Button type="submit" disabled={isLoading}>Următorul <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                      <Button type="button" variant="outline" onClick={handleBack}><ChevronLeft className="mr-2 h-4 w-4" /> Înapoi</Button>
+                      <Button type="submit" disabled={isLoading}>Următorul <ChevronRight className="ml-2 h-4 w-4" /></Button>
                     </CardFooter>
                   </form>
                 </Form>
               )}
 
               {step === 'form' && questions.length > 0 && (
-                <DynamicOnboardingForm 
-                  questions={questions} 
+                <DynamicOnboardingForm
+                  questions={questions}
                   onSubmit={handleFormSubmit}
                   onBack={handleBack}
-                  onStepChange={setFormStep} 
+                  onStepChange={setFormStep}
                 />
               )}
             </div>
@@ -422,7 +423,7 @@ export default function Home() {
         );
       case 'result':
         return (
-           <div className="space-y-6 animate-in fade-in zoom-in-95 w-full max-w-4xl">
+          <div className="space-y-6 animate-in fade-in zoom-in-95 w-full max-w-4xl">
             <ResultDisplay prompt={finalPrompt} />
             <PromptSandbox key={finalPrompt} systemPrompt={finalPrompt} />
             <KnowledgeBaseUploader
@@ -461,7 +462,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8 bg-gray-200 dark:bg-gray-800">
-       <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait">
         {renderContent()}
       </AnimatePresence>
 
@@ -473,7 +474,7 @@ export default function Home() {
                 <p className="mt-2 text-lg font-medium text-foreground">{loadingMessage}</p>
                 <p className="text-sm text-muted-foreground">În acest timp, vă rugăm să răspundeți la câteva întrebări.</p>
               </div>
-              <QuickScanSurvey 
+              <QuickScanSurvey
                 onAnswersChange={setQuickSurveyAnswers}
                 onComplete={() => setQuickSurveyCompleted(true)}
                 isAnalysisInProgress={flowMode === 'url' ? !analysisCompleted : !aiQuestionsGenerated}

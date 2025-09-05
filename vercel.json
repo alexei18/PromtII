@@ -1,0 +1,19 @@
+{
+    "functions": {
+        "src/app/**/*.ts": {
+            "maxDuration": 30
+        },
+        "src/app/actions.ts": {
+            "maxDuration": 45
+        }
+    },
+    "env": {
+        "NODE_OPTIONS": "--max-old-space-size=1024"
+    },
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "/api/:path*"
+        }
+    ]
+}

@@ -83,14 +83,17 @@ ${input.context}
         console.log('[GENERATE_PERSONA_CARD] Attempting to parse JSON:', jsonText.substring(0, 200) + '...');
 
         const parsedOutput = JSON.parse(jsonText);
+        console.log('[GENERATE_PERSONA_CARD] Parsed object keys:', Object.keys(parsedOutput));
 
         // Transform the response to match the expected schema
         const transformedOutput = {
-          name: parsedOutput.name,
-          personality: parsedOutput.description || parsedOutput.personality || 'Asistent virtual prietenos',
-          objective: parsedOutput.mainObjective || parsedOutput.objective || 'Să ajut utilizatorii',
+          name: parsedOutput.name || 'AI Assistant',
+          personality: parsedOutput.description || parsedOutput.personality || 'Asistent virtual prietenos și profesional',
+          objective: parsedOutput.mainObjective || parsedOutput.objective || 'Să ofer asistență de calitate utilizatorilor',
           keyRules: parsedOutput.keyRules || []
         };
+
+        console.log('[GENERATE_PERSONA_CARD] Transformed output:', transformedOutput);
 
         // Validarea schemei de ieșire
         const validatedOutput = PersonaCardDataSchema.parse(transformedOutput);
